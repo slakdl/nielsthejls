@@ -4,6 +4,33 @@
     return ASCII_GLYPHS[Math.floor(Math.random() * ASCII_GLYPHS.length)];
   }
 
+  // The favicon is drawn from the same glyph pool as the string
+  // navigation, picked fresh on every load — same randomizer, just
+  // rendered to a canvas instead of an SVG node.
+  (function setFavicon() {
+    const size = 64;
+    const canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext("2d");
+    ctx.fillStyle = "#f5f4ef";
+    ctx.fillRect(0, 0, size, size);
+    ctx.fillStyle = "#1a1a1a";
+    ctx.font = '46px ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace';
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(randomAscii(), size / 2, size / 2 + 2);
+
+    let link = document.querySelector('link[rel="icon"]');
+    if (!link) {
+      link = document.createElement("link");
+      link.rel = "icon";
+      document.head.appendChild(link);
+    }
+    link.type = "image/png";
+    link.href = canvas.toDataURL("image/png");
+  })();
+
   const bloomcharge = {
     id: "bloomcharge",
     kind: "project",
@@ -93,6 +120,12 @@
       id: "archive-work",
       label: "Archive Work",
       body: "A collection of experiments, studies, ideas and visual detours.\n\nThe archive is where I explore things without necessarily knowing where they're going. Typography, motion, image-making, code, identity, interaction and everything in between.\n\nSome are finished. Some are not. Some were made to solve a problem, others to create one.\n\nMostly, this is just a place to follow curiosity.",
+      media: [
+        { type: "video", src: "assets/projects/archive/screen-recording-1.mp4", aspect: 1080 / 1920 },
+        { type: "video", src: "assets/projects/archive/screen-recording-2.mp4", aspect: 1080 / 1080 },
+        { type: "video", src: "assets/projects/archive/notes.mp4", aspect: 1080 / 1920 },
+        { type: "video", src: "assets/projects/archive/lou.mp4", aspect: 760 / 432 },
+      ],
       items: [],
     },
     {
@@ -100,22 +133,34 @@
       label: "Bio",
       photo: "assets/Niels_Pas_Wide_compressed.png",
       body: "I'm Niels, a visual designer working across brand, digital and motion.\n\nCuriosity is at the centre of my practice. I like exploring how things work, finding connections between disciplines and following ideas far enough to see where they lead.\n\nMy work moves between visual identities, digital experiences, motion and experimentation, with a focus on turning complex ideas into clear and engaging visual systems.\n\nI enjoy working collaboratively, where different perspectives and disciplines can challenge an idea and make it better.",
-      resume: {
-        experience: [
-          { org: "Spring/Summer", role: "Junior Designer", years: "2026 – Present" },
-          { org: "Re-Public", role: "Internship", years: "2026" },
-          { org: "Stupid Studio", role: "Freelance", years: "2025 – Present" },
-          { org: "Stupid Studio", role: "Internship", years: "2024 – 2025" },
-          { org: "Danmarks Medie- og Journalisthøjskole", role: "Student Assistant", years: "2024 – 2025" },
-          { org: "Dwarf", role: "Internship", years: "2022" },
-        ],
-        education: [
-          { org: "Toronto Metropolitan University", role: "Scholarship | Digital Publishing", years: "2025" },
-          { org: "Danmarks Medie- og Journalisthøjskole", role: "Bachelor Degree | Interactive Design", years: "2022 – 2025" },
-          { org: "Københavns Erhvervsakademi", role: "Academy Degree | Entrepreneurship & Design", years: "2020 – 2022" },
-          { org: "Fontys Academy for Creative Industries", role: "Minor | Transmedia Design", years: "2021" },
-        ],
-      },
+      resumeSections: [
+        {
+          title: "Experience",
+          entries: [
+            { org: "Spring/Summer", role: "Junior Designer", years: "2026 – Present" },
+            { org: "Re-Public", role: "Internship", years: "2026" },
+            { org: "Stupid Studio", role: "Freelance", years: "2025 – Present" },
+            { org: "Stupid Studio", role: "Internship", years: "2024 – 2025" },
+            { org: "Danmarks Medie- og Journalisthøjskole", role: "Student Assistant", years: "2024 – 2025" },
+            { org: "Dwarf", role: "Internship", years: "2022" },
+          ],
+        },
+        {
+          title: "Education",
+          entries: [
+            { org: "Toronto Metropolitan University", role: "Scholarship | Digital Publishing", years: "2025" },
+            { org: "Danmarks Medie- og Journalisthøjskole", role: "Bachelor Degree | Interactive Design", years: "2022 – 2025" },
+            { org: "Københavns Erhvervsakademi", role: "Academy Degree | Entrepreneurship & Design", years: "2020 – 2022" },
+            { org: "Fontys Academy for Creative Industries", role: "Minor | Transmedia Design", years: "2021" },
+          ],
+        },
+        {
+          title: "Recognition",
+          entries: [
+            { org: "The Green Hand", role: "Graphite Pencil — D&AD New Blood Awards", url: "https://www.dandad.org/work/new-blood-archive/the-green-hand" },
+          ],
+        },
+      ],
       media: [{ type: "image", src: "assets/projects/bio/portrait.jpg", aspect: 2480 / 3485 }],
       items: [],
     },
@@ -585,24 +630,24 @@
     renderMedia(item);
   }
 
-  function appendResumeRow(view, resume, startOpen) {
+  function appendResumeSection(view, title, entries, startOpen) {
     const row = view.append("div").attr("class", "detail-row" + (startOpen ? " open" : ""));
     const head = row.append("div").attr("class", "detail-row-head");
-    head.append("span").text("Resume");
+    head.append("span").text(title);
     head.append("span").attr("class", "detail-toggle").text("+");
     head.on("click", () => row.classed("open", !row.classed("open")));
 
-    const resumeBody = row.append("div").attr("class", "detail-row-body resume-body");
-    [
-      { heading: "Experience", entries: resume.experience },
-      { heading: "Education", entries: resume.education },
-    ].forEach((section) => {
-      resumeBody.append("p").attr("class", "resume-heading").text(section.heading);
-      const list = resumeBody.append("ul").attr("class", "resume-list");
-      const li = list.selectAll("li").data(section.entries).join("li");
-      li.append("span").attr("class", "resume-org").text((d) => d.org);
-      li.append("span").attr("class", "resume-role").text((d) => d.role);
-      li.append("span").attr("class", "resume-years").text((d) => d.years);
+    const list = row.append("div").attr("class", "detail-row-body resume-body").append("ul").attr("class", "resume-list");
+    const li = list.selectAll("li").data(entries).join("li");
+    li.each(function (d) {
+      const li = d3.select(this);
+      if (d.url) {
+        li.append("a").attr("class", "resume-org").attr("href", d.url).attr("target", "_blank").attr("rel", "noopener noreferrer").text(d.org);
+      } else {
+        li.append("span").attr("class", "resume-org").text(d.org);
+      }
+      if (d.role) li.append("span").attr("class", "resume-role").text(d.role);
+      if (d.years) li.append("span").attr("class", "resume-years").text(d.years);
     });
   }
 
@@ -638,7 +683,9 @@
     const body = view.append("div").attr("class", "project-body");
     folder.body.split("\n\n").forEach((para) => body.append("p").text(para));
 
-    if (folder.resume) appendResumeRow(view, folder.resume, true);
+    if (folder.resumeSections) {
+      folder.resumeSections.forEach((section) => appendResumeSection(view, section.title, section.entries, true));
+    }
 
     renderMedia(folder);
   }

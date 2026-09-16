@@ -425,19 +425,6 @@ body {
   display: block;
 }
 
-.resume-heading {
-  font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--ink);
-  margin: 14px 0 8px;
-}
-
-.resume-heading:first-child {
-  margin-top: 0;
-}
-
 .resume-list {
   list-style: none;
 }
@@ -464,8 +451,18 @@ body {
   overflow-wrap: break-word;
 }
 
+a.resume-org {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+a.resume-org:hover {
+  color: var(--accent);
+}
+
 .resume-role {
   color: var(--muted);
+  flex: 1 1 100%;
   min-width: 0;
   overflow-wrap: break-word;
 }
