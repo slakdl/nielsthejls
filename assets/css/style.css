@@ -126,6 +126,10 @@ body {
   pointer-events: auto;
 }
 
+.graph .node:hover .node-ascii {
+  fill: var(--accent);
+}
+
 /* right-side panel — on top by default; a hovered media item (z-index 6) rises above everything, including the graph (z-index 5), so you can see it fully while hovering */
 .panel {
   position: absolute;
@@ -272,6 +276,75 @@ body {
   border-radius: 0;
   box-shadow: 0 25px 50px rgba(20, 18, 10, 0.18);
   display: block;
+}
+
+.rail-item.openable,
+.mobile-media-item.openable {
+  cursor: pointer;
+}
+
+.mobile-media-item {
+  position: relative;
+}
+
+.rail-item.openable::after,
+.mobile-media-item.openable::after {
+  content: "▶";
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 22px;
+  height: 22px;
+  background: var(--card-bg);
+  color: var(--ink);
+  font-size: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+/* fullscreen video overlay — opened from a specific flagged media item,
+   with real controls and sound (unlike the muted background rail) */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(15, 14, 10, 0.92);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.lightbox.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.lightbox video {
+  max-width: 90vw;
+  max-height: 88vh;
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.4);
+}
+
+.lightbox-close {
+  all: unset;
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--card-bg);
+  color: var(--ink);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
 }
 
 /* project detail view inside the panel */
@@ -472,6 +545,14 @@ a.resume-org:hover {
   margin-left: auto;
 }
 
+/* below-project media on mobile: a plain in-flow stack, appended inside
+   the panel itself rather than scattered as a background layer (there's
+   no open canvas to scatter across once the graph is gone). Hidden on
+   desktop, where the scattered .media-rail is used instead. */
+.mobile-media {
+  display: none;
+}
+
 @media (max-width: 860px) {
   html, body {
     overflow: auto;
@@ -480,13 +561,12 @@ a.resume-org:hover {
   .scene {
     height: auto;
     min-height: 100vh;
-    display: flex;
-    flex-direction: column;
+    display: block;
   }
 
+  /* the string navigation is desktop-only; mobile shows just the index */
   .graph {
-    position: relative;
-    height: 42vh;
+    display: none;
   }
 
   .panel {
@@ -501,5 +581,20 @@ a.resume-org:hover {
 
   .media-rail {
     display: none;
+  }
+
+  .mobile-media {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 20px;
+  }
+
+  .mobile-media video,
+  .mobile-media img {
+    width: 100%;
+    height: auto;
+    display: block;
+    box-shadow: 0 15px 30px rgba(20, 18, 10, 0.12);
   }
 }

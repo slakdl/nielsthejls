@@ -1,5 +1,5 @@
 (function () {
-  const ASCII_GLYPHS = ["■", "□", "▪", "▫", "◻", "◼"];
+  const ASCII_GLYPHS = ["■", "▪", "◼", "●", "▲", "▼"]; // solid/filled shapes only, no outline variants
   function randomAscii() {
     return ASCII_GLYPHS[Math.floor(Math.random() * ASCII_GLYPHS.length)];
   }
@@ -93,7 +93,13 @@
     body: "A promotional motion campaign for the Royal Danish Theatre's 2025 rerun of Don Juan.\n\nThe work explores the more contemporary side of the classic character, translating the play's themes of seduction, excess and chaos into a dynamic visual language.\n\nMotion, typography and imagery are used to create a fast-paced and engaging system designed for promotion across digital platforms.\n\nA modern interpretation of a familiar story.",
     media: [
       { type: "video", src: "assets/projects/trdt/landscape.mp4", aspect: 1920 / 1080 },
-      { type: "video", src: "assets/projects/trdt/portrait-4x5.mp4", aspect: 1080 / 1350 },
+      {
+        type: "video",
+        src: "assets/projects/trdt/portrait-4x5.mp4",
+        aspect: 1080 / 1350,
+        lightbox: true,
+        lightboxSrc: "assets/projects/trdt/portrait-4x5-sound.mp4", // the muted background rail uses a silent export; this is the same cut re-transcoded from the ProRes master with its audio track intact
+      },
       { type: "video", src: "assets/projects/trdt/square.mp4", aspect: 1 },
       { type: "video", src: "assets/projects/trdt/story.mp4", aspect: 1080 / 1920 },
     ],
@@ -162,6 +168,9 @@
         },
       ],
       media: [{ type: "image", src: "assets/projects/bio/portrait.jpg", aspect: 2480 / 3485 }],
+      externalLinks: [
+        { id: "bio-recognition", label: "Recognition", url: "https://www.dandad.org/work/new-blood-archive/the-green-hand" },
+      ],
       items: [],
     },
   ];
@@ -171,6 +180,9 @@
     f.items.forEach((it) => {
       it.ascii = randomAscii();
     });
+    (f.externalLinks || []).forEach((lnk) => {
+      lnk.ascii = randomAscii();
+    });
   });
 
   // Persistent node objects — built once so a node keeps its position (and
@@ -179,10 +191,14 @@
   const rootNode = { id: "root", type: "root", label: "Niels Thejls", sub: "B. 1997", ascii: randomAscii() };
   const folderNodes = new Map();
   const itemNodes = new Map();
+  const linkNodes = new Map();
   folders.forEach((f) => {
     folderNodes.set(f.id, { id: f.id, type: "folder", label: f.label, ascii: f.ascii, hasItems: f.items.length > 0 });
     f.items.forEach((it) => {
       itemNodes.set(it.id, { id: it.id, type: "item", label: it.label, ascii: it.ascii, folderId: f.id, item: it });
+    });
+    (f.externalLinks || []).forEach((lnk) => {
+      linkNodes.set(lnk.id, { id: lnk.id, type: "link", label: lnk.label, ascii: lnk.ascii, url: lnk.url, folderId: f.id });
     });
   });
 
@@ -327,6 +343,11 @@
             activeNodes.push(itn);
             activeLinks.push({ source: f.id, target: it.id, muted: it.kind === "placeholder" });
           });
+          (f.externalLinks || []).forEach((lnk) => {
+            const ln = linkNodes.get(lnk.id);
+            activeNodes.push(ln);
+            activeLinks.push({ source: f.id, target: lnk.id, muted: false });
+          });
         }
       });
     }
@@ -335,7 +356,7 @@
     // visibly grows outward from there, instead of popping in at (0,0)
     activeNodes.forEach((d) => {
       if (d.x === undefined) {
-        const parent = d.type === "folder" ? rootNode : d.type === "item" ? folderNodes.get(d.folderId) : null;
+        const parent = d.type === "folder" ? rootNode : d.type === "item" || d.type === "link" ? folderNodes.get(d.folderId) : null;
         const px = parent ? parent.x : width * 0.3;
         const py = parent ? parent.y : height * 0.49;
         d.x = px + (Math.random() - 0.5) * 6;
@@ -373,6 +394,7 @@
             .on("click", (event, d) => {
               if (d.type === "root") toggleRoot();
               else if (d.type === "folder") d.hasItems ? toggleFolder(d.id) : openFolderPage(d.id);
+              else if (d.type === "link") window.open(d.url, "_blank", "noopener,noreferrer");
               else openProject(d.folderId, d.id);
             });
           g.each(function (d) {
@@ -401,6 +423,32 @@
   // --- right-hand panel ---
   const panelBody = d3.select("#panel-body");
   const mediaRail = d3.select("#media-rail");
+  const lightbox = d3.select("#lightbox");
+
+  function openLightbox(src) {
+    lightbox.html("");
+    const video = lightbox.append("video").attr("src", src).attr("controls", true).attr("playsinline", true).node();
+    // Explicit, unmuted .play() — called synchronously inside this click
+    // handler so the browser counts it as a real user gesture and allows
+    // sound. The `autoplay` attribute alone gets silently downgraded to
+    // muted by most browsers' autoplay policy, which was the bug.
+    video.muted = false;
+    video.play().catch(() => {});
+    lightbox.append("button").attr("class", "lightbox-close").html("&times;").on("click", closeLightbox);
+    lightbox.on("click", (event) => {
+      if (event.target === lightbox.node()) closeLightbox();
+    });
+    lightbox.classed("visible", true);
+  }
+
+  function closeLightbox() {
+    lightbox.classed("visible", false);
+    lightbox.html("");
+  }
+
+  window.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && lightbox.classed("visible")) closeLightbox();
+  });
 
   function setActiveFolder(folderId) {
     nodeSel.classed("active", (d) => d.type === "folder" && d.id === folderId);
@@ -504,7 +552,44 @@
     return area > 0 ? (ow * oh) / area : 0;
   }
 
+  const MOBILE_BREAKPOINT = 860; // must match the CSS breakpoint
+
+  // On mobile there's no open canvas to scatter across (the string nav is
+  // hidden entirely), so media is just appended in-flow below the project
+  // text instead — no positioning math needed, normal document flow.
+  function renderMobileMedia(item) {
+    mediaRail.classed("visible", false).html("");
+    updateMediaOverlap();
+
+    const view = panelBody.select(".project-view");
+    view.selectAll(".mobile-media").remove();
+    if (!item.media || !item.media.length) return;
+
+    const gallery = view.append("div").attr("class", "mobile-media");
+    shuffled(item.media).forEach((m) => {
+      const wrap = gallery.append("div").attr("class", "mobile-media-item" + (m.lightbox ? " openable" : ""));
+      if (m.lightbox) wrap.on("click", () => openLightbox(m.lightboxSrc || m.src));
+      if (m.type === "video") {
+        wrap
+          .append("video")
+          .attr("src", m.src)
+          .attr("autoplay", true)
+          .attr("muted", true)
+          .attr("loop", true)
+          .attr("playsinline", true)
+          .property("muted", true);
+      } else {
+        wrap.append("img").attr("src", m.src).attr("alt", "");
+      }
+    });
+  }
+
   function renderMedia(item) {
+    if (window.innerWidth <= MOBILE_BREAKPOINT) {
+      renderMobileMedia(item);
+      return;
+    }
+
     mediaRail.html("");
     if (!item.media || !item.media.length) {
       mediaRail.classed("visible", false);
@@ -520,7 +605,7 @@
       .selectAll("div")
       .data(shuffled(item.media))
       .join("div")
-      .attr("class", "rail-item");
+      .attr("class", (m) => "rail-item" + (m.lightbox ? " openable" : ""));
 
     wraps.each(function (m) {
       const aspect = m.aspect || 1;
@@ -549,6 +634,7 @@
 
       const el = d3.select(this);
       el.style("right", `${best.right}px`).style("top", `${best.top}px`).style("width", `${w}px`).style("height", `${h}px`);
+      if (m.lightbox) el.on("click", () => openLightbox(m.lightboxSrc || m.src));
 
       if (m.type === "video") {
         el.append("video")
@@ -655,7 +741,7 @@
     const folder = folders.find((f) => f.id === folderId);
 
     rootOpen = true;
-    openFolderId = null;
+    openFolderId = folderId; // reveals this folder's externalLinks (if any) as graph children
     updateGraph();
 
     setActiveFolder(folderId);
