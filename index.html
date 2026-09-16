@@ -4,98 +4,23 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Niels Thejls</title>
-
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    html, body {
-      height: 100%;
-      overflow: hidden;
-    }
-
-    body {
-      background: red;
-    }
-
-    img {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 10vw;
-      height: auto;
-    }
-
-    #typewriter {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      font-family: Arial, Helvetica, sans-serif;
-      font-size: 14px;
-      color: #fff;
-      text-align: center;
-      white-space: pre;
-    }
-  </style>
+  <meta name="description" content="Niels Thejls — Visual Designer. Portfolio index.">
+  <link rel="icon" type="image/png" href="assets/Niels_Pas_Wide_compressed.png">
+  <link rel="stylesheet" href="assets/css/style.css">
 </head>
-
 <body>
 
-  <img id="logo" src="assets/Niels_Pas_Wide_compressed.png" alt="Niels Thejls">
+  <div class="scene">
+    <svg id="graph" class="graph"></svg>
 
-  <div id="typewriter"></div>
+    <div id="media-rail" class="media-rail"></div>
 
-  <script>
-    const text = "Niels Thejls\nVisual designer";
-    const el = document.getElementById('typewriter');
-    let i = 0;
+    <aside class="panel">
+      <div id="panel-body"></div>
+    </aside>
+  </div>
 
-    function type() {
-      if (i <= text.length) {
-        el.innerHTML = text.slice(0, i).replace(/\n/g, '<br>');
-        i++;
-        setTimeout(type, 20);
-      }
-    }
-
-    type();
-  </script>
-
-  <script>
-    const logo = document.getElementById('logo');
-    let x = Math.random() * (window.innerWidth - logo.clientWidth);
-    let y = Math.random() * (window.innerHeight - logo.clientHeight);
-    let dx = 1;
-    let dy = 1;
-
-    function animate() {
-      const width = logo.clientWidth;
-      const height = logo.clientHeight;
-      const maxX = window.innerWidth - width;
-      const maxY = window.innerHeight - height;
-
-      x += dx;
-      y += dy;
-
-      if (x <= 0 || x >= maxX) {
-        dx = -dx;
-        x = Math.max(0, Math.min(x, maxX));
-      }
-      if (y <= 0 || y >= maxY) {
-        dy = -dy;
-        y = Math.max(0, Math.min(y, maxY));
-      }
-
-      logo.style.transform = `translate(${x}px, ${y}px)`;
-      requestAnimationFrame(animate);
-    }
-
-    requestAnimationFrame(animate);
-  </script>
-
+  <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+  <script src="assets/js/app.js"></script>
 </body>
 </html>

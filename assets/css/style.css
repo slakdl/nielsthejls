@@ -1,0 +1,508 @@
+:root {
+  --bg: #f5f4ef;
+  --ink: #1a1a1a;
+  --muted: #b3b0a8;
+  --line: #d8d5cc;
+  --accent: #e2572b;
+  --card-bg: #ffffff;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Inter", "Helvetica Neue", Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+html, body {
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font-sans);
+}
+
+.scene {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+}
+
+.graph {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 5;
+  pointer-events: none;
+}
+
+/* graph elements */
+.graph .link {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1;
+}
+
+.graph .link.muted {
+  stroke: var(--muted);
+  stroke-dasharray: 3 3;
+}
+
+.graph .node-ascii {
+  fill: var(--ink);
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.graph .node.muted .node-ascii {
+  fill: var(--muted);
+  font-weight: 400;
+}
+
+.graph .node.root .node-ascii {
+  fill: var(--accent);
+}
+
+.graph .node.active .node-ascii {
+  fill: var(--accent);
+}
+
+.graph .node.selected .node-ascii {
+  fill: var(--accent);
+}
+
+/* the string-nav glyph inverts itself whenever it sits atop an image or
+   video, same standing rule as the KOBEN logo/text invert — legible no
+   matter what's underneath, without needing a cross-layer blend mode */
+.graph .node.on-media .node-ascii {
+  filter: invert(1);
+}
+
+.graph .node.selected .node-label {
+  fill: var(--ink);
+  font-weight: 600;
+}
+
+.graph .node.active .node-label {
+  fill: var(--accent);
+  font-weight: 600;
+}
+
+.graph .node-label {
+  font-size: 12px;
+  fill: var(--ink);
+  font-weight: 500;
+  pointer-events: none;
+}
+
+.graph .node.muted .node-label {
+  fill: var(--muted);
+  font-weight: 400;
+}
+
+.graph .node.root .node-label {
+  font-size: 15px;
+  font-weight: 600;
+  fill: var(--ink);
+}
+
+.graph .node.root .node-sublabel {
+  font-size: 11px;
+  fill: var(--muted);
+}
+
+.graph .node {
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+/* right-side panel — on top by default; a hovered media item (z-index 6) rises above everything, including the graph (z-index 5), so you can see it fully while hovering */
+.panel {
+  position: absolute;
+  top: 50%;
+  right: 110px;
+  transform: translateY(-50%);
+  width: 340px;
+  max-height: 74vh;
+  overflow-y: auto;
+  background: var(--card-bg);
+  border-radius: 0;
+  box-shadow: 0 20px 45px rgba(20, 18, 10, 0.08);
+  padding: 6px 22px;
+  z-index: 3;
+}
+
+.folder-list {
+  list-style: none;
+}
+
+.folder-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 0;
+  border-bottom: 1px dashed var(--line);
+  cursor: pointer;
+}
+
+.folder-row:last-child {
+  border-bottom: none;
+}
+
+.folder-icon {
+  width: 18px;
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  text-align: center;
+}
+
+.folder-label {
+  flex: 1;
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.folder-toggle {
+  font-size: 15px;
+  color: var(--muted);
+  width: 16px;
+  text-align: center;
+  transition: transform 0.2s ease;
+}
+
+.folder-row.open .folder-toggle {
+  transform: rotate(45deg);
+  color: var(--ink);
+}
+
+.folder-content {
+  display: none;
+  padding: 0 0 16px 30px;
+}
+
+.folder-row.open + .folder-content {
+  display: block;
+}
+
+.folder-content p {
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin-bottom: 10px;
+  max-width: 40ch;
+}
+
+.folder-content ul {
+  list-style: none;
+}
+
+.folder-content li a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12.5px;
+  color: var(--ink);
+  padding: 6px 0;
+}
+
+.folder-content li a:hover {
+  color: var(--accent);
+}
+
+.item-icon {
+  width: 18px;
+  flex-shrink: 0;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  text-align: center;
+  color: var(--muted);
+}
+
+/* media rail — sits behind the panel and the graph by default; a hovered
+   item jumps to z-index 6, clearing both, so it's always fully visible on
+   hover. The container spans the full viewport but stays pointer-events:none at
+   all times so it never blocks clicks on the graph underneath (the
+   string navigation); only the individual .rail-item thumbnails re-enable
+   pointer events for themselves. Every item's exact top/right position is
+   assigned in JS — a full random scatter, re-rolled on every open — with
+   only enough of a rule kept to guarantee nothing lands fully behind the
+   panel or off-screen; overlap between items is expected and fine. */
+.media-rail {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.35s ease;
+}
+
+.media-rail.visible {
+  opacity: 1;
+}
+
+.media-rail .rail-item {
+  position: absolute;
+  pointer-events: auto;
+}
+
+.media-rail .rail-item:hover {
+  z-index: 6;
+}
+
+/* the wrapping .rail-item gets its exact width/height set inline in JS,
+   computed from the media's real aspect ratio — the video/img inside
+   just fills that box exactly, no cropping needed since the box already
+   matches its aspect ratio. */
+.media-rail video,
+.media-rail img {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  box-shadow: 0 25px 50px rgba(20, 18, 10, 0.18);
+  display: block;
+}
+
+/* project detail view inside the panel */
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 0;
+  border-bottom: 1px dashed var(--line);
+  margin-bottom: 4px;
+}
+
+.panel-back {
+  all: unset;
+  cursor: pointer;
+  font-size: 15px;
+  color: var(--muted);
+}
+
+.panel-back:hover {
+  color: var(--ink);
+}
+
+.panel-header .folder-label {
+  flex: 1;
+}
+
+.project-view {
+  padding-bottom: 18px;
+}
+
+.project-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink);
+  margin: 4px 0 14px;
+}
+
+.project-eyebrow .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 0;
+  background: var(--accent);
+}
+
+.project-photo {
+  display: block;
+  width: 100%;
+  max-width: 220px;
+  height: auto;
+  border-radius: 0;
+  margin-bottom: 16px;
+}
+
+.project-title {
+  font-size: 19px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.project-subtitle {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.project-meta {
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 18px;
+}
+
+.project-meta a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.project-meta a:hover {
+  color: var(--ink);
+}
+
+.project-body p {
+  font-size: 12.5px;
+  line-height: 1.7;
+  margin-bottom: 12px;
+  white-space: pre-line;
+}
+
+.project-credit {
+  font-size: 11.5px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.project-credit strong {
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.detail-row {
+  border-top: 1px dashed var(--line);
+  padding: 14px 0;
+  cursor: pointer;
+}
+
+.detail-row:last-child {
+  padding-bottom: 4px;
+}
+
+.detail-row-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.detail-row-head span:first-child {
+  flex: 1;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.detail-toggle {
+  color: var(--muted);
+  transition: transform 0.2s ease;
+}
+
+.detail-row.open .detail-toggle {
+  transform: rotate(45deg);
+  color: var(--ink);
+}
+
+.detail-row-body {
+  display: none;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+  padding: 10px 0 0 2px;
+}
+
+.detail-row.open .detail-row-body {
+  display: block;
+}
+
+.resume-heading {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink);
+  margin: 14px 0 8px;
+}
+
+.resume-heading:first-child {
+  margin-top: 0;
+}
+
+.resume-list {
+  list-style: none;
+}
+
+.resume-list li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  padding: 6px 0;
+  border-top: 1px dashed var(--line);
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+.resume-list li:first-child {
+  border-top: none;
+}
+
+.resume-org {
+  color: var(--ink);
+  font-weight: 500;
+  flex: 1 1 100%;
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.resume-role {
+  color: var(--muted);
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+.resume-years {
+  color: var(--muted);
+  margin-left: auto;
+}
+
+@media (max-width: 860px) {
+  html, body {
+    overflow: auto;
+  }
+
+  .scene {
+    height: auto;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .graph {
+    position: relative;
+    height: 42vh;
+  }
+
+  .panel {
+    position: relative;
+    top: auto;
+    right: auto;
+    transform: none;
+    width: auto;
+    margin: 24px 20px 40px;
+    max-height: none;
+  }
+
+  .media-rail {
+    display: none;
+  }
+}
