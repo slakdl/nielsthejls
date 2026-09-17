@@ -37,9 +37,10 @@
     label: "Bloom Charge",
     subtitle: "Motion Design",
     meta: "Re-public · 2026",
-    metaUrl: "https://www.re-public.com/",
+    tags: "BLOOM CHARGE · MOTION DESIGN · SHOWREEL · STORYBOARDING · BRANDING · AFTER EFFECTS",
     body: "Motion design and showreel development for Bloom Charge, a next-generation charge point management system for the EV industry.\n\nThe work focused on translating Bloom Charge's tech-forward visual identity into a dynamic motion language, balancing the approachable character of the brand with the precision of its technology.\n\nI developed the motion assets and storyboarded the showreel, bringing the identity to life through a series of engaging visual compositions.",
     credit: "Søren Severin",
+    related: ["trdt", "vandalorum"],
     media: [
       { type: "video", src: "assets/projects/bloomcharge/showreel.mp4", aspect: 1920 / 1080 },
       { type: "video", src: "assets/projects/bloomcharge/portrait.mp4", aspect: 2160 / 3840 },
@@ -56,8 +57,10 @@
     label: "Dansk Kvindesamfund",
     subtitle: "UI Design",
     meta: "Stupid Studio · 2025",
+    tags: "KALDER ALLE UNGE · DIGITAL DESIGN · GRAPHIC DESIGN · WEB · MOTION · CAMPAIGN · FIGMA · AFTER EFFECTS",
     body: "Digital and graphic design for Dansk Kvindesamfund's Kalder alle unge initiative.\n\nThe project combined physical and digital formats to create an engaging way for young people to explore and discuss topics around gender and equality.\n\nTogether with the team, I developed the visual design and layouts for 10 conversation starter games, alongside digitalising selected games for the web.\n\nThe project also included motion assets for the case presentation, bringing the different elements together into a cohesive and engaging digital experience.",
     credit: "Amanda Mikkelsen, Leyla Melis Aslan, Sarah Carlson",
+    related: ["bloomcharge", "ikeafoundation"],
     media: [
       { type: "video", src: "assets/projects/dks/game-card.mp4", aspect: 1080 / 1350 },
       { type: "video", src: "assets/projects/dks/game-card-2.mp4", aspect: 1080 / 1350 },
@@ -76,7 +79,9 @@
     label: "Vandalorum",
     subtitle: "Motion Design",
     meta: "Vandalorum",
+    tags: "VANDALORUM · MOTION DESIGN · POSTER · CULTURAL · 2D ANIMATION · AFTER EFFECTS",
     body: "A motion poster for Vandalorum, a Swedish museum for art and design.\n\nThe existing poster was translated into a playful moving composition, bringing its illustrated elements to life through motion.\n\nThe animation adds rhythm and interaction to the original visual language while retaining the character of the static poster.",
+    related: ["trdt", "bloomcharge"],
     media: [
       { type: "video", src: "assets/projects/vandalorum/motion-poster.mp4", aspect: 1192 / 1686 },
       { type: "video", src: "assets/projects/vandalorum/screen-recording.mp4", aspect: 572 / 334 },
@@ -90,7 +95,9 @@
     label: "Royal Danish Theatre",
     subtitle: "Motion Design",
     meta: "Royal Danish Theatre · 2025",
+    tags: "DON JUAN · MOTION DESIGN · CAMPAIGN · DIGITAL · TYPOGRAPHY · AFTER EFFECTS",
     body: "A promotional motion campaign for the Royal Danish Theatre's 2025 rerun of Don Juan.\n\nThe work explores the more contemporary side of the classic character, translating the play's themes of seduction, excess and chaos into a dynamic visual language.\n\nMotion, typography and imagery are used to create a fast-paced and engaging system designed for promotion across digital platforms.\n\nA modern interpretation of a familiar story.",
+    related: ["bloomcharge", "vandalorum"],
     media: [
       { type: "video", src: "assets/projects/trdt/landscape.mp4", aspect: 1920 / 1080 },
       {
@@ -105,14 +112,19 @@
     ],
   };
 
-  const dmjx = {
-    id: "dmjx",
+  const ikeafoundation = {
+    id: "ikeafoundation",
     kind: "project",
-    label: "DMJX",
-    subtitle: "Motion Identity",
-    meta: "DMJX — Communication Office",
-    body: "A motion identity and production package for DMJX's Communication Office.\n\nThe system was designed to bring consistency to video productions across the organisation, with flexible intro, breaker and outro sequences that could be applied to different formats and content.\n\nAs the existing identity had no motion guidelines, the project explored how its visual language could translate into movement, while establishing a system that remained playful, engaging and within the boundaries of the identity.\n\nThe system has since expanded into an audio-driven motion language for the DMJX podcast series, alongside motion design for other productions.",
-    media: [{ type: "video", src: "assets/projects/dmjx/screen-recording.mp4", aspect: 472 / 672 }],
+    label: "IKEA Foundation",
+    subtitle: "Digital Design",
+    meta: "Stupid Studio · 2026",
+    tags: "IKEA FOUNDATION · DIGITAL DESIGN · WEB · SITE IMPLEMENTATION · CMS · FIGMA · CRAFT CMS · COLLABORATION",
+    body: "Digital implementation and site population for the new IKEA Foundation website and the 2026 IKEA Foundation Week campaign site.\n\nWorking alongside designers, copywriters and developers to bring the visual identity into a flexible digital environment.\n\nThe work involved translating designs into responsive web pages, populating content and ensuring consistency across the different digital touchpoints.",
+    related: ["dks", "bloomcharge"],
+    media: [
+      { type: "video", src: "assets/projects/ikeafoundation/screen-recording-1.mp4", aspect: 1654 / 842 },
+      { type: "video", src: "assets/projects/ikeafoundation/screen-recording-2.mp4", aspect: 1654 / 842 },
+    ],
   };
 
   const folders = [
@@ -120,7 +132,7 @@
       id: "client-work",
       label: "Client Work",
       description: "Selected client casework.",
-      items: [bloomcharge, dks, vandalorum, trdt, dmjx],
+      items: [bloomcharge, dks, vandalorum, trdt, ikeafoundation],
     },
     {
       id: "archive-work",
@@ -131,6 +143,7 @@
         { type: "video", src: "assets/projects/archive/screen-recording-2.mp4", aspect: 1080 / 1080 },
         { type: "video", src: "assets/projects/archive/notes.mp4", aspect: 1080 / 1920 },
         { type: "video", src: "assets/projects/archive/lou.mp4", aspect: 760 / 432 },
+        { type: "video", src: "assets/projects/archive/model-training.mp4", aspect: 1042 / 1042 },
       ],
       items: [],
     },
@@ -147,7 +160,6 @@
             { org: "Re-Public", role: "Internship", years: "2026" },
             { org: "Stupid Studio", role: "Freelance", years: "2025 – Present" },
             { org: "Stupid Studio", role: "Internship", years: "2024 – 2025" },
-            { org: "Danmarks Medie- og Journalisthøjskole", role: "Student Assistant", years: "2024 – 2025" },
             { org: "Dwarf", role: "Internship", years: "2022" },
           ],
         },
@@ -228,7 +240,7 @@
       d3
         .forceLink([])
         .id((d) => d.id)
-        .distance((d) => (d.source.type === "root" ? 140 : 90))
+        .distance((d) => d.distance ?? (d.source.type === "root" ? 140 : 90))
         .strength(0.9)
     )
     .force("charge", d3.forceManyBody().strength(-260))
@@ -338,15 +350,17 @@
         activeNodes.push(fn);
         activeLinks.push({ source: "root", target: f.id, muted: false });
         if (openFolderId === f.id) {
+          // varied per-link so a folder's children don't all sit in a
+          // uniform ring around it — re-rolled fresh each time it opens
           f.items.forEach((it) => {
             const itn = itemNodes.get(it.id);
             activeNodes.push(itn);
-            activeLinks.push({ source: f.id, target: it.id, muted: it.kind === "placeholder" });
+            activeLinks.push({ source: f.id, target: it.id, muted: it.kind === "placeholder", distance: 60 + Math.random() * 110 });
           });
           (f.externalLinks || []).forEach((lnk) => {
             const ln = linkNodes.get(lnk.id);
             activeNodes.push(ln);
-            activeLinks.push({ source: f.id, target: lnk.id, muted: false });
+            activeLinks.push({ source: f.id, target: lnk.id, muted: false, distance: 60 + Math.random() * 110 });
           });
         }
       });
@@ -388,7 +402,10 @@
         (enter) => {
           const g = enter
             .append("g")
-            .attr("class", (d) => "node " + d.type + (d.type === "item" && d.item.kind === "placeholder" ? " muted" : ""))
+            .attr(
+              "class",
+              (d) => "node " + (d.type === "link" ? "ext-link" : d.type) + (d.type === "item" && d.item.kind === "placeholder" ? " muted" : "")
+            )
             .attr("opacity", 0)
             .call(drag())
             .on("click", (event, d) => {
@@ -682,36 +699,46 @@
 
     view.append("div").attr("class", "project-title").text(item.label);
     if (item.subtitle) view.append("div").attr("class", "project-subtitle").text(item.subtitle);
-    if (item.meta) {
-      const meta = view.append("div").attr("class", "project-meta");
-      if (item.metaUrl) {
-        meta.append("a").attr("href", item.metaUrl).attr("target", "_blank").attr("rel", "noopener noreferrer").text(item.meta);
-      } else {
-        meta.text(item.meta);
-      }
-    }
+    if (item.meta) view.append("div").attr("class", "project-meta").text(item.meta);
 
     const body = view.append("div").attr("class", "project-body");
     (item.body || "More detail coming soon for this item.")
       .split("\n\n")
       .forEach((para) => body.append("p").text(para));
 
-    if (item.credit) {
-      view.append("div").attr("class", "project-credit").html(`Made with: <strong>${item.credit}</strong>`);
-    }
+    // Details: tags + collaborators (moved out of the always-visible bio
+    // text and into this collapsible row)
+    const detailsRow = view.append("div").attr("class", "detail-row");
+    const detailsHead = detailsRow.append("div").attr("class", "detail-row-head");
+    detailsHead.append("span").text("Details");
+    detailsHead.append("span").attr("class", "detail-toggle").text("+");
+    detailsHead.on("click", () => detailsRow.classed("open", !detailsRow.classed("open")));
+    const detailsBody = detailsRow.append("div").attr("class", "detail-row-body");
+    detailsBody.append("p").attr("class", "detail-tags").text(item.tags || [folder.label, item.subtitle, item.meta].filter(Boolean).join(" · "));
+    if (item.credit) detailsBody.append("p").attr("class", "detail-credit").html(`Made with: <strong>${item.credit}</strong>`);
 
-    const details = [
-      { title: "Details", body: [folder.label, item.subtitle, item.meta].filter(Boolean).join(" · ") },
-      { title: "Connections", body: `Part of ${folder.label}` },
-    ];
-    details.forEach((d) => {
-      const row = view.append("div").attr("class", "detail-row");
-      const head = row.append("div").attr("class", "detail-row-head");
-      head.append("span").text(d.title);
-      head.append("span").attr("class", "detail-toggle").text("+");
-      row.append("div").attr("class", "detail-row-body").text(d.body);
-      head.on("click", () => row.classed("open", !row.classed("open")));
-    });
+    // Connections: links to related projects, navigating within the app
+    const related = (item.related || []).map((id) => folder.items.find((it) => it.id === id)).filter(Boolean);
+    if (related.length) {
+      const connRow = view.append("div").attr("class", "detail-row");
+      const connHead = connRow.append("div").attr("class", "detail-row-head");
+      connHead.append("span").text("Connections");
+      connHead.append("span").attr("class", "detail-toggle").text("+");
+      connHead.on("click", () => connRow.classed("open", !connRow.classed("open")));
+      const connBody = connRow.append("div").attr("class", "detail-row-body");
+      const list = connBody.append("ul").attr("class", "connections-list");
+      list
+        .selectAll("li")
+        .data(related)
+        .join("li")
+        .append("a")
+        .attr("href", "#")
+        .text((d) => d.label)
+        .on("click", (event, d) => {
+          event.preventDefault();
+          openProject(folder.id, d.id);
+        });
+    }
 
     renderMedia(item);
   }
