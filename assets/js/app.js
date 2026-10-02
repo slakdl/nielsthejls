@@ -422,17 +422,22 @@
   // at the foot, no labels. The bug hunts rather than walks: it turns to face
   // the click, creeps in short bursts with freezes in between, stepping one or
   // two legs at a time, then pounces with a fast alternating gait once it's
-  // close. Legs fold away again once it has rested a while.
+  // close. Legs pop out like the project nodes do: they start at the body and
+  // are pulled into place by the same kind of spring the force graph uses
+  // (velocity decay 0.4), fading in over the same 350ms. They fold back the
+  // same way once it has rested a while.
   const spider = (() => {
     const HIP_ANGLES = [34, 68, 112, 148]; // degrees from the heading, front to back
     const UPPER = 78, LOWER = 96; // leg segment lengths
     const REACH = 128; // body to resting foot
     const STEP_AT = 46; // how far a foot may lag before it steps
-    const CREEP_SPEED = 34; // px per second
-    const POUNCE_SPEED = 330;
-    const POUNCE_RANGE = 120; // close enough to strike
+    const CREEP_SPEED = 100; // px per second
+    const POUNCE_SPEED = 520;
+    const POUNCE_RANGE = 160; // close enough to strike
     const REST_BEFORE_FOLD = 2600; // ms
     const BODY_MARGIN = 70; // keeps the body far enough in for its legs
+    const SPRING = 0.2; // pull toward the target position per 60fps tick
+    const VELOCITY_DECAY = 0.4; // same as d3's force simulation
 
     const state = {
       moved: false,
@@ -441,7 +446,7 @@
       phaseUntil: 0,
       heading: -Math.PI / 2, // facing up to start
       speed: 0,
-      grow: 0, // 0 folded … 1 fully grown
+      legsOut: false,
       restingSince: 0,
       legs: [],
       lastTime: 0,
@@ -461,12 +466,14 @@
           to: null,
           t0: 0,
           stepMs: 0,
+          // what's drawn: springs toward the walking positions
+          shown: { knee: { x: 0, y: 0, vx: 0, vy: 0 }, foot: { x: 0, y: 0, vx: 0, vy: 0 } },
         });
       });
     });
 
     const slot = fontSize({ type: "item" }) * 0.62;
-    const legSel = legLayer.selectAll("g").data(state.legs).join("g").attr("class", "leg");
+    const legSel = legLayer.selectAll("g").data(state.legs).join("g").attr("class", "leg").attr("opacity", 0);
     legSel.append("path").attr("class", "link");
     legSel.each(function () {
       const g = d3.select(this);
@@ -499,6 +506,50 @@
       return keepInView(ahead(k1) > ahead(k2) === leg.front ? k1 : k2);
     }
 
+    // Like a new project node: start at the body, nudged a few px at random,
+    // and let the spring throw it out to its place
+    function popLegs() {
+      const b = body();
+      state.legsOut = true;
+      state.legs.forEach((leg) => {
+        leg.foot = restSpot(leg, 0);
+        leg.to = null;
+        [leg.shown.knee, leg.shown.foot].forEach((p) => {
+          p.x = b.x + (Math.random() - 0.5) * 6;
+          p.y = b.y + (Math.random() - 0.5) * 6;
+          p.vx = p.vy = 0;
+        });
+      });
+      legSel.interrupt().attr("opacity", 0).transition().duration(350).attr("opacity", 1);
+    }
+
+    function foldLegs() {
+      state.legsOut = false;
+      legSel.interrupt().transition().duration(350).attr("opacity", 0);
+    }
+
+    // Spring each drawn point toward where the leg wants it (or back into the
+    // body when folding). Returns true once everything has settled.
+    function springLegs(dt) {
+      const b = body();
+      const ticks = Math.max(1, Math.round(dt * 60));
+      let settled = true;
+      state.legs.forEach((leg) => {
+        const goals = state.legsOut ? { knee: knee(leg), foot: leg.foot } : { knee: b, foot: b };
+        ["knee", "foot"].forEach((part) => {
+          const p = leg.shown[part], g = goals[part];
+          for (let i = 0; i < ticks; i++) {
+            p.vx = (p.vx + (g.x - p.x) * SPRING) * (1 - VELOCITY_DECAY);
+            p.vy = (p.vy + (g.y - p.y) * SPRING) * (1 - VELOCITY_DECAY);
+            p.x += p.vx;
+            p.y += p.vy;
+          }
+          if (Math.abs(g.x - p.x) + Math.abs(g.y - p.y) > 0.5 || Math.abs(p.vx) + Math.abs(p.vy) > 0.05) settled = false;
+        });
+      });
+      return settled;
+    }
+
     function setPhase(phase, now, ms) {
       state.phase = phase;
       state.phaseUntil = now + ms;
@@ -511,10 +562,10 @@
         y: clamp(y, v.top + BODY_MARGIN, v.bottom - BODY_MARGIN),
       };
       state.moved = true;
-      if (state.grow === 0) state.legs.forEach((leg) => (leg.foot = restSpot(leg, 0)));
+      if (!state.legsOut) popLegs();
       marker.interrupt().attr("x", state.target.x - 2.5).attr("y", state.target.y - 2.5).attr("opacity", 1);
       // a brief freeze first: it has noticed something
-      setPhase("freeze", performance.now(), 250 + Math.random() * 350);
+      setPhase("freeze", performance.now(), 120 + Math.random() * 180);
       simulation.alphaTarget(0.2).restart();
       if (!state.running) {
         state.running = true;
@@ -543,19 +594,19 @@
       if (state.phase !== "pounce") {
         if (dist < POUNCE_RANGE && facing && state.phase !== "freeze") setPhase("pounce", now, Infinity);
         else if (state.phase === "creep" && Math.abs(off) > 0.7) setPhase("turn", now, Infinity);
-        else if (state.phase === "turn" && facing) setPhase("creep", now, 500 + Math.random() * 1200);
+        else if (state.phase === "turn" && facing) setPhase("creep", now, 400 + Math.random() * 900);
         else if (now > state.phaseUntil) {
-          if (state.phase === "creep") setPhase("freeze", now, 300 + Math.random() * 1100);
-          else setPhase(facing ? "creep" : "turn", now, 500 + Math.random() * 1200);
+          if (state.phase === "creep") setPhase("freeze", now, 120 + Math.random() * 380);
+          else setPhase(facing ? "creep" : "turn", now, 400 + Math.random() * 900);
         }
       }
 
       // turn rate and speed per phase
-      const turnRate = { turn: 1.6, creep: 0.9, freeze: 0, pounce: 8 }[state.phase];
+      const turnRate = { turn: 4, creep: 2.2, freeze: 0, pounce: 10 }[state.phase];
       const wanted = { turn: 0, creep: CREEP_SPEED, freeze: 0, pounce: Math.min(POUNCE_SPEED, dist * 7) }[state.phase];
       state.heading += clamp(off, -turnRate * dt, turnRate * dt);
       if (state.phase === "freeze" && Math.random() < dt * 1.5) state.heading += (Math.random() - 0.5) * 0.12; // twitch
-      state.speed += (wanted - state.speed) * Math.min(1, dt * (state.phase === "pounce" ? 14 : 6));
+      state.speed += (wanted - state.speed) * Math.min(1, dt * (state.phase === "pounce" ? 16 : 9));
 
       // creep along the heading; the pounce goes straight for the target
       const step = Math.min(dist, state.speed * dt);
@@ -605,7 +656,7 @@
           leg.from = leg.foot;
           leg.to = spot;
           leg.t0 = now;
-          leg.stepMs = pouncing ? 70 : 190;
+          leg.stepMs = pouncing ? 60 : 120;
           stepping.push(leg);
         });
     }
@@ -616,14 +667,14 @@
 
       if (state.target) moveBody(now, dt);
 
-      // legs grow when it starts hunting, fold away after a long rest
-      const folding = !state.target && now - state.restingSince > REST_BEFORE_FOLD;
-      state.grow = clamp(state.grow + (folding ? -dt * 1.8 : dt * 3), 0, 1);
+      // fold away after a long rest
+      if (state.legsOut && !state.target && now - state.restingSince > REST_BEFORE_FOLD) foldLegs();
 
-      moveLegs(now);
+      if (state.legsOut) moveLegs(now);
+      const settled = springLegs(dt);
       draw();
 
-      if (state.target || state.grow > 0 || state.legs.some((l) => l.to)) {
+      if (state.target || state.legsOut || !settled || state.legs.some((l) => l.to)) {
         requestAnimationFrame(frame);
       } else {
         state.running = false;
@@ -631,10 +682,9 @@
     }
 
     function draw() {
-      const g = state.grow, b = body();
-      const grown = (p) => ({ x: b.x + (p.x - b.x) * g, y: b.y + (p.y - b.y) * g });
-      legSel.attr("opacity", g > 0 ? 1 : 0).each(function (leg) {
-        const k = grown(knee(leg)), f = grown(leg.foot);
+      const b = body();
+      legSel.each(function (leg) {
+        const k = leg.shown.knee, f = leg.shown.foot;
         const el = d3.select(this);
         el.select("path").attr("d", `M${b.x},${b.y}L${k.x},${k.y}L${f.x},${f.y}`);
         el.select(".leg-knee").attr("transform", `translate(${k.x},${k.y})`);
