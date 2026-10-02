@@ -20,6 +20,36 @@ a {
   text-decoration: none;
 }
 
+/* No rounded corners anywhere: square focus outlines (browser default
+   rings can be rounded) and no rounded tap highlight on touch. */
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* the node shapes in the index list, drawn as boxes rather than glyphs:
+   squares and triangles stay sharp, circles are the only round shape */
+.shape {
+  display: block;
+  background: currentColor;
+}
+
+.shape-circle {
+  border-radius: 50%;
+}
+
+.shape-up {
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+.shape-down {
+  clip-path: polygon(0 0, 100% 0, 50% 100%);
+}
+
 html, body {
   height: 100%;
   background: var(--bg);
@@ -58,34 +88,35 @@ body {
   stroke-dasharray: 3 3;
 }
 
-.graph .node-ascii {
+.graph .node-shape {
   fill: var(--ink);
   stroke: none;
-  font-family: var(--font-mono);
-  font-weight: 600;
 }
 
-.graph .node.muted .node-ascii {
+.graph rect.node-shape {
+  shape-rendering: crispEdges;
+}
+
+.graph .node.muted .node-shape {
   fill: var(--muted);
-  font-weight: 400;
 }
 
-.graph .node.root .node-ascii {
+.graph .node.root .node-shape {
   fill: var(--accent);
 }
 
-.graph .node.active .node-ascii {
+.graph .node.active .node-shape {
   fill: var(--accent);
 }
 
-.graph .node.selected .node-ascii {
+.graph .node.selected .node-shape {
   fill: var(--accent);
 }
 
 /* the string-nav glyph inverts itself whenever it sits atop an image or
    video, same standing rule as the KOBEN logo/text invert — legible no
    matter what's underneath, without needing a cross-layer blend mode */
-.graph .node.on-media .node-ascii {
+.graph .node.on-media .node-shape {
   filter: invert(1);
 }
 
@@ -128,7 +159,7 @@ body {
   pointer-events: auto;
 }
 
-.graph .node:hover .node-ascii {
+.graph .node:hover .node-shape {
   fill: var(--accent);
 }
 
@@ -142,9 +173,23 @@ body {
   overflow-y: auto;
   background: var(--card-bg);
   border-radius: 0;
-  box-shadow: 0 20px 45px rgba(20, 18, 10, 0.08);
+  border: 1px solid var(--line); /* hairline instead of a blurred shadow, whose soft corners read as rounded */
   padding: 6px 22px;
   z-index: 3;
+}
+
+/* square scrollbar (the macOS default thumb is a rounded pill) */
+.panel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.panel::-webkit-scrollbar-thumb {
+  background: var(--line);
+  border-radius: 0;
 }
 
 .folder-list {
@@ -167,9 +212,8 @@ body {
 .folder-icon {
   width: 18px;
   flex-shrink: 0;
-  font-family: var(--font-mono);
-  font-weight: 600;
-  text-align: center;
+  display: flex;
+  justify-content: center;
 }
 
 .folder-label {
@@ -230,9 +274,8 @@ body {
 .item-icon {
   width: 18px;
   flex-shrink: 0;
-  font-family: var(--font-mono);
-  font-weight: 600;
-  text-align: center;
+  display: flex;
+  justify-content: center;
   color: var(--muted);
 }
 
@@ -275,7 +318,6 @@ body {
   width: 100%;
   height: 100%;
   border-radius: 0;
-  box-shadow: 0 25px 50px rgba(20, 18, 10, 0.18);
   display: block;
 }
 
@@ -290,18 +332,13 @@ body {
 
 .rail-item.openable::after,
 .mobile-media-item.openable::after {
-  content: "▶";
+  content: "";
   position: absolute;
   right: 8px;
   bottom: 8px;
   width: 22px;
   height: 22px;
-  background: var(--card-bg);
-  color: var(--ink);
-  font-size: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  background: linear-gradient(var(--ink), var(--ink)) center / 8px 8px no-repeat, var(--card-bg);
   pointer-events: none;
 }
 
@@ -328,7 +365,6 @@ body {
 .lightbox video {
   max-width: 90vw;
   max-height: 88vh;
-  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.4);
 }
 
 .lightbox-close {
@@ -611,6 +647,5 @@ a.resume-org:hover {
     width: 100%;
     height: auto;
     display: block;
-    box-shadow: 0 15px 30px rgba(20, 18, 10, 0.12);
   }
 }

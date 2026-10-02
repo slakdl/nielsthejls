@@ -1,8 +1,53 @@
 (function () {
-  const ASCII_GLYPHS = ["■", "▪", "◼", "●", "▲", "▼"]; // solid/filled shapes only, no outline variants
-  function randomAscii() {
-    return ASCII_GLYPHS[Math.floor(Math.random() * ASCII_GLYPHS.length)];
+  // Node shapes are drawn geometry (SVG / CSS / canvas), never font
+  // glyphs: fonts and emoji fallbacks soften the corners of ■ ▪ ◼ ▲ ▼.
+  // Squares and triangles keep sharp corners; circles are the only round
+  // shape. `scale` is the size relative to the shape's slot.
+  const SHAPES = [
+    { kind: "square", scale: 1 },
+    { kind: "square", scale: 0.75 },
+    { kind: "square", scale: 0.5 },
+    { kind: "circle", scale: 1 },
+    { kind: "up", scale: 1 },
+    { kind: "down", scale: 1 },
+  ];
+  function randomShape() {
+    return SHAPES[Math.floor(Math.random() * SHAPES.length)];
   }
+  // Triangle points inside a box of side `a` centred on (cx, cy)
+  function trianglePoints(kind, a, cx = 0, cy = 0) {
+    const h = a / 2;
+    return kind === "up"
+      ? [[cx, cy - h], [cx + h, cy + h], [cx - h, cy + h]]
+      : [[cx - h, cy - h], [cx + h, cy - h], [cx, cy + h]];
+  }
+  function shapeSpan(sel, shape) {
+    const a = Math.round(11 * shape.scale);
+    sel.append("span").attr("class", `shape shape-${shape.kind}`).style("width", `${a}px`).style("height", `${a}px`);
+  }
+  function drawShape(g, shape, slot) {
+    const a = Math.round(slot * shape.scale);
+    if (shape.kind === "square") {
+      return g.append("rect").attr("x", -a / 2).attr("y", -a / 2).attr("width", a).attr("height", a);
+    }
+    if (shape.kind === "circle") return g.append("circle").attr("r", a / 2);
+    return g.append("polygon").attr("points", trianglePoints(shape.kind, a).map((p) => p.join(",")).join(" "));
+  }
+
+  // Placeholder copy: every digit is re-rolled on each load, keeping the
+  // length and punctuation of each string so the layout stays the same.
+  function scramble(str) {
+    return str.replace(/\d/g, () => Math.floor(Math.random() * 10));
+  }
+  const UI = {
+    index: scramble("05482"),
+    page: scramble("5193"),
+    project: scramble("0915472"),
+    placeholder: scramble("77401639285"),
+    details: scramble("6038172"),
+    connections: scramble("94016257318"),
+    madeWith: scramble("2148 6170"),
+  };
 
   // The favicon is drawn from the same glyph pool as the string
   // navigation, picked fresh on every load — same randomizer, just
@@ -16,10 +61,16 @@
     ctx.fillStyle = "#f5f4ef";
     ctx.fillRect(0, 0, size, size);
     ctx.fillStyle = "#1a1a1a";
-    ctx.font = '46px ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace';
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
-    ctx.fillText(randomAscii(), size / 2, size / 2 + 2);
+    const shape = randomShape();
+    const a = Math.round(40 * shape.scale);
+    if (shape.kind === "square") {
+      ctx.fillRect((size - a) / 2, (size - a) / 2, a, a);
+    } else {
+      ctx.beginPath();
+      if (shape.kind === "circle") ctx.arc(size / 2, size / 2, a / 2, 0, Math.PI * 2);
+      else trianglePoints(shape.kind, a, size / 2, size / 2).forEach(([x, y], i) => (i ? ctx.lineTo(x, y) : ctx.moveTo(x, y)));
+      ctx.fill();
+    }
 
     let link = document.querySelector('link[rel="icon"]');
     if (!link) {
@@ -31,127 +82,33 @@
     link.href = canvas.toDataURL("image/png");
   })();
 
-  const bloomcharge = {
-    id: "bloomcharge",
-    kind: "project",
-    label: "Bloom Charge",
-    subtitle: "Motion Design",
-    meta: "Re-public · 2026",
-    tags: "BLOOM CHARGE · MOTION DESIGN · SHOWREEL · STORYBOARDING · BRANDING · AFTER EFFECTS",
-    body: "Motion design and showreel development for Bloom Charge, a next-generation charge point management system for the EV industry.\n\nThe work focused on translating Bloom Charge's tech-forward visual identity into a dynamic motion language, balancing the approachable character of the brand with the precision of its technology.\n\nI developed the motion assets and storyboarded the showreel, bringing the identity to life through a series of engaging visual compositions.",
-    credit: "Søren Severin",
-    related: ["trdt", "vandalorum"],
-    media: [
-      { type: "video", src: "assets/projects/bloomcharge/showreel.mp4", aspect: 1920 / 1080 },
-      { type: "video", src: "assets/projects/bloomcharge/portrait.mp4", aspect: 2160 / 3840 },
-      { type: "video", src: "assets/projects/bloomcharge/square.mp4", aspect: 1 },
-      { type: "image", src: "assets/projects/bloomcharge/mockup.png", aspect: 1252 / 2000 },
-      { type: "image", src: "assets/projects/bloomcharge/mockup2.png", aspect: 1252 / 2000 },
-      { type: "image", src: "assets/projects/bloomcharge/mockup3.png", aspect: 1252 / 2000 },
-    ],
-  };
-
-  const dks = {
-    id: "dks",
-    kind: "project",
-    label: "Dansk Kvindesamfund",
-    subtitle: "UI Design",
-    meta: "Stupid Studio · 2025",
-    tags: "KALDER ALLE UNGE · DIGITAL DESIGN · GRAPHIC DESIGN · WEB · MOTION · CAMPAIGN · FIGMA · AFTER EFFECTS",
-    body: "Digital and graphic design for Dansk Kvindesamfund's Kalder alle unge initiative.\n\nThe project combined physical and digital formats to create an engaging way for young people to explore and discuss topics around gender and equality.\n\nTogether with the team, I developed the visual design and layouts for 10 conversation starter games, alongside digitalising selected games for the web.\n\nThe project also included motion assets for the case presentation, bringing the different elements together into a cohesive and engaging digital experience.",
-    credit: "Amanda Mikkelsen, Leyla Melis Aslan, Sarah Carlson",
-    related: ["bloomcharge", "ikeafoundation"],
-    media: [
-      { type: "video", src: "assets/projects/dks/game-card.mp4", aspect: 1080 / 1350 },
-      { type: "video", src: "assets/projects/dks/game-card-2.mp4", aspect: 1080 / 1350 },
-      { type: "video", src: "assets/projects/dks/game-card-3.mp4", aspect: 1080 / 1350 },
-      { type: "video", src: "assets/projects/dks/screen-recording.mp4", aspect: 396 / 750 },
-      { type: "video", src: "assets/projects/dks/image-flick.mp4", aspect: 1466 / 938 },
-      { type: "video", src: "assets/projects/dks/stickersheet.mp4", aspect: 2160 / 3840 },
-      { type: "image", src: "assets/projects/dks/some-02.png", aspect: 1080 / 1350 },
-      { type: "image", src: "assets/projects/dks/some-05.png", aspect: 1080 / 1350 },
-    ],
-  };
-
-  const vandalorum = {
-    id: "vandalorum",
-    kind: "project",
-    label: "Vandalorum",
-    subtitle: "Motion Design",
-    meta: "Vandalorum",
-    tags: "VANDALORUM · MOTION DESIGN · POSTER · CULTURAL · 2D ANIMATION · AFTER EFFECTS",
-    body: "A motion poster for Vandalorum, a Swedish museum for art and design.\n\nThe existing poster was translated into a playful moving composition, bringing its illustrated elements to life through motion.\n\nThe animation adds rhythm and interaction to the original visual language while retaining the character of the static poster.",
-    related: ["trdt", "bloomcharge"],
-    media: [
-      { type: "video", src: "assets/projects/vandalorum/motion-poster.mp4", aspect: 1192 / 1686 },
-      { type: "video", src: "assets/projects/vandalorum/screen-recording.mp4", aspect: 572 / 334 },
-      { type: "image", src: "assets/projects/vandalorum/poster.png", aspect: 1192 / 1686 },
-    ],
-  };
-
-  const trdt = {
-    id: "trdt",
-    kind: "project",
-    label: "Royal Danish Theatre",
-    subtitle: "Motion Design",
-    meta: "Royal Danish Theatre · 2025",
-    tags: "DON JUAN · MOTION DESIGN · CAMPAIGN · DIGITAL · TYPOGRAPHY · AFTER EFFECTS",
-    body: "A promotional motion campaign for the Royal Danish Theatre's 2025 rerun of Don Juan.\n\nThe work explores the more contemporary side of the classic character, translating the play's themes of seduction, excess and chaos into a dynamic visual language.\n\nMotion, typography and imagery are used to create a fast-paced and engaging system designed for promotion across digital platforms.\n\nA modern interpretation of a familiar story.",
-    related: ["bloomcharge", "vandalorum"],
-    media: [
-      { type: "video", src: "assets/projects/trdt/landscape.mp4", aspect: 1920 / 1080 },
-      {
-        type: "video",
-        src: "assets/projects/trdt/portrait-4x5.mp4",
-        aspect: 1080 / 1350,
-        lightbox: true,
-        lightboxSrc: "assets/projects/trdt/portrait-4x5-sound.mp4", // the muted background rail uses a silent export; this is the same cut re-transcoded from the ProRes master with its audio track intact
-      },
-      { type: "video", src: "assets/projects/trdt/square.mp4", aspect: 1 },
-      { type: "video", src: "assets/projects/trdt/story.mp4", aspect: 1080 / 1920 },
-    ],
-  };
-
-  const ikeafoundation = {
-    id: "ikeafoundation",
-    kind: "project",
-    label: "IKEA Foundation",
-    subtitle: "Digital Design",
-    meta: "Stupid Studio · 2026",
-    tags: "IKEA FOUNDATION · DIGITAL DESIGN · WEB · SITE IMPLEMENTATION · CMS · FIGMA · CRAFT CMS · COLLABORATION",
-    body: "Digital implementation and site population for the new IKEA Foundation website and the 2026 IKEA Foundation Week campaign site.\n\nWorking alongside designers, copywriters and developers to bring the visual identity into a flexible digital environment.\n\nThe work involved translating designs into responsive web pages, populating content and ensuring consistency across the different digital touchpoints.",
-    related: ["dks", "bloomcharge"],
-    media: [
-      { type: "video", src: "assets/projects/ikeafoundation/screen-recording-1.mp4", aspect: 1654 / 842 },
-      { type: "video", src: "assets/projects/ikeafoundation/screen-recording-2.mp4", aspect: 1654 / 842 },
-    ],
-  };
-
   const folders = [
     {
       id: "client-work",
-      label: "Client Work",
-      description: "Selected client casework.",
-      items: [bloomcharge, dks, vandalorum, trdt, ikeafoundation],
+      label: "313236 5733",
+      description: "06420691 355490 99037383.",
+      items: [1, 2, 3, 4, 5].map((n) => ({
+        id: `client-${n}`,
+        kind: "project",
+        label: "00000 000000",
+        subtitle: "000000 0000",
+        meta: "000000 · 0000",
+        tags: "0000 · 0000000 · 00000 · 000000000",
+        body: "0000000 00 0000 0000000 000 00000000 000 0000000 00 000000.\n\n00 00000 00000 000000 0000000 0000 0000 000 0000000 00000.",
+        related: [`client-${(n % 5) + 1}`, `client-${((n + 1) % 5) + 1}`],
+      })),
     },
     {
       id: "archive-work",
-      label: "Archive Work",
-      body: "A collection of experiments, studies, ideas and visual detours.\n\nThe archive is where I explore things without necessarily knowing where they're going. Typography, motion, image-making, code, identity, interaction and everything in between.\n\nSome are finished. Some are not. Some were made to solve a problem, others to create one.\n\nMostly, this is just a place to follow curiosity.",
-      media: [
-        { type: "video", src: "assets/projects/archive/screen-recording-1.mp4", aspect: 1080 / 1920 },
-        { type: "video", src: "assets/projects/archive/screen-recording-2.mp4", aspect: 1080 / 1080 },
-        { type: "video", src: "assets/projects/archive/notes.mp4", aspect: 1080 / 1920 },
-        { type: "video", src: "assets/projects/archive/lou.mp4", aspect: 760 / 432 },
-        { type: "video", src: "assets/projects/archive/model-training.mp4", aspect: 1042 / 1042 },
-      ],
+      label: "5147125 4589",
+      body: "0 4822196158 77 13158135620, 7646543, 02230 508 210440 9090355.\n\n589 4774399 68 09409 0 9901029 342125 8999152 55161536682 8071048 51627 2242'06 57592. 8236862408, 834551, 54740-993422, 7984, 34152043, 21434404151 339 7588955769 83 1687583.\n\n1620 983 15728680. 0314 908 081. 2013 3556 7304 02 42508 1 6840676, 159007 78 261548 930.\n\n055574, 8727 55 2019 6 26367 37 718820 535918445.",
       items: [],
     },
     {
       id: "bio",
-      label: "Bio",
+      label: "779",
       photo: "assets/Niels_Pas_Wide_compressed.png",
-      body: "I'm Niels, a visual designer working across brand, digital and motion.\n\nCuriosity is at the centre of my practice. I like exploring how things work, finding connections between disciplines and following ideas far enough to see where they lead.\n\nMy work moves between visual identities, digital experiences, motion and experimentation, with a focus on turning complex ideas into clear and engaging visual systems.\n\nI enjoy working collaboratively, where different perspectives and disciplines can challenge an idea and make it better.",
+      body: "6'7 67846, 9 600576 68896221 3865805 116201 20607, 4449433 625 733121.\n\n2 4010 297406003 745 366995 2572, 3034432 84949437353 5835542 51386540119 117 669134031.",
       resumeSections: [
         {
           title: "Experience",
@@ -188,29 +145,35 @@
   ];
 
   folders.forEach((f) => {
-    f.ascii = randomAscii();
+    f.label = scramble(f.label);
+    if (f.body) f.body = scramble(f.body);
+    f.shape = randomShape();
+    if (f.description) f.description = scramble(f.description);
     f.items.forEach((it) => {
-      it.ascii = randomAscii();
+      ["label", "subtitle", "meta", "tags", "body"].forEach((k) => {
+        if (it[k]) it[k] = scramble(it[k]);
+      });
+      it.shape = randomShape();
     });
     (f.externalLinks || []).forEach((lnk) => {
-      lnk.ascii = randomAscii();
+      lnk.shape = randomShape();
     });
   });
 
   // Persistent node objects — built once so a node keeps its position (and
   // the simulation keeps its momentum) across every reveal/hide cycle,
   // instead of resetting each time it re-enters the graph.
-  const rootNode = { id: "root", type: "root", label: "Niels Thejls", sub: "B. 1997", ascii: randomAscii() };
+  const rootNode = { id: "root", type: "root", label: "Niels Thejls", sub: "B. 1997", shape: randomShape() };
   const folderNodes = new Map();
   const itemNodes = new Map();
   const linkNodes = new Map();
   folders.forEach((f) => {
-    folderNodes.set(f.id, { id: f.id, type: "folder", label: f.label, ascii: f.ascii, hasItems: f.items.length > 0 });
+    folderNodes.set(f.id, { id: f.id, type: "folder", label: f.label, shape: f.shape, hasItems: f.items.length > 0 });
     f.items.forEach((it) => {
-      itemNodes.set(it.id, { id: it.id, type: "item", label: it.label, ascii: it.ascii, folderId: f.id, item: it });
+      itemNodes.set(it.id, { id: it.id, type: "item", label: it.label, shape: it.shape, folderId: f.id, item: it });
     });
     (f.externalLinks || []).forEach((lnk) => {
-      linkNodes.set(lnk.id, { id: lnk.id, type: "link", label: lnk.label, ascii: lnk.ascii, url: lnk.url, folderId: f.id });
+      linkNodes.set(lnk.id, { id: lnk.id, type: "link", label: lnk.label, shape: lnk.shape, url: lnk.url, folderId: f.id });
     });
   });
 
@@ -318,12 +281,7 @@
   let openFolderId = null;
 
   function buildNode(g, d) {
-    g.append("text")
-      .attr("class", "node-ascii")
-      .attr("text-anchor", "middle")
-      .attr("dominant-baseline", "central")
-      .style("font-size", fontSize(d) + "px")
-      .text(d.ascii);
+    drawShape(g, d.shape, fontSize(d) * 0.62).attr("class", "node-shape");
 
     g.append("text")
       .attr("class", "node-label")
@@ -506,7 +464,7 @@
           .append("div")
           .attr("class", "folder-row" + (f.id === openId ? " open" : ""))
           .attr("data-id", f.id);
-        row.append("span").attr("class", "folder-icon").text(f.ascii);
+        row.append("span").attr("class", "folder-icon").call(shapeSpan, f.shape);
         row.append("span").attr("class", "folder-label").text(f.label);
         row.append("span").attr("class", "folder-toggle").text(hasItems ? "+" : "→");
 
@@ -515,7 +473,9 @@
           content.append("p").text(f.description);
           const ul = content.append("ul");
           const itemLi = ul.selectAll("li").data(f.items).join("li").append("a").attr("href", "#");
-          itemLi.append("span").attr("class", "item-icon").text((d) => d.ascii);
+          itemLi.append("span").attr("class", "item-icon").each(function (d) {
+            shapeSpan(d3.select(this), d.shape);
+          });
           itemLi.append("span").text((d) => d.label);
           itemLi.on("click", (event, d) => {
             event.preventDefault();
@@ -693,7 +653,7 @@
 
     const eyebrow = view.append("div").attr("class", "project-eyebrow");
     eyebrow.append("span").attr("class", "dot");
-    eyebrow.append("span").text(item.kind === "project" ? "Project" : item.kind === "page" ? "Page" : "Placeholder");
+    eyebrow.append("span").text(item.kind === "project" ? UI.project : item.kind === "page" ? UI.page : UI.placeholder);
 
     if (item.photo) view.append("img").attr("class", "project-photo").attr("src", item.photo).attr("alt", item.label);
 
@@ -710,19 +670,19 @@
     // text and into this collapsible row)
     const detailsRow = view.append("div").attr("class", "detail-row");
     const detailsHead = detailsRow.append("div").attr("class", "detail-row-head");
-    detailsHead.append("span").text("Details");
+    detailsHead.append("span").text(UI.details);
     detailsHead.append("span").attr("class", "detail-toggle").text("+");
     detailsHead.on("click", () => detailsRow.classed("open", !detailsRow.classed("open")));
     const detailsBody = detailsRow.append("div").attr("class", "detail-row-body");
     detailsBody.append("p").attr("class", "detail-tags").text(item.tags || [folder.label, item.subtitle, item.meta].filter(Boolean).join(" · "));
-    if (item.credit) detailsBody.append("p").attr("class", "detail-credit").html(`Made with: <strong>${item.credit}</strong>`);
+    if (item.credit) detailsBody.append("p").attr("class", "detail-credit").html(`${UI.madeWith}: <strong>${item.credit}</strong>`);
 
     // Connections: links to related projects, navigating within the app
     const related = (item.related || []).map((id) => folder.items.find((it) => it.id === id)).filter(Boolean);
     if (related.length) {
       const connRow = view.append("div").attr("class", "detail-row");
       const connHead = connRow.append("div").attr("class", "detail-row-head");
-      connHead.append("span").text("Connections");
+      connHead.append("span").text(UI.connections);
       connHead.append("span").attr("class", "detail-toggle").text("+");
       connHead.on("click", () => connRow.classed("open", !connRow.classed("open")));
       const connBody = connRow.append("div").attr("class", "detail-row-body");
@@ -781,13 +741,13 @@
       nodeSel.classed("selected", false);
       renderIndex(null);
     });
-    header.append("span").attr("class", "folder-label").text("Index");
+    header.append("span").attr("class", "folder-label").text(UI.index);
 
     const view = panelBody.append("div").attr("class", "project-view");
 
     const eyebrow = view.append("div").attr("class", "project-eyebrow");
     eyebrow.append("span").attr("class", "dot");
-    eyebrow.append("span").text("Page");
+    eyebrow.append("span").text(UI.page);
 
     if (folder.photo) view.append("img").attr("class", "project-photo").attr("src", folder.photo).attr("alt", folder.label);
 
