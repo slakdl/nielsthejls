@@ -163,7 +163,16 @@
   // Persistent node objects — built once so a node keeps its position (and
   // the simulation keeps its momentum) across every reveal/hide cycle,
   // instead of resetting each time it re-enters the graph.
-  const rootNode = { id: "root", type: "root", label: "Niels Thejls", sub: "B. 1997", shape: randomShape() };
+  // While the loading intro plays (intro.js), the web starts closed and the
+  // body is a full square: the dot of the "i" in the intro becomes it
+  const introPlaying = document.documentElement.classList.contains("intro");
+  const rootNode = {
+    id: "root",
+    type: "root",
+    label: "Niels Thejls",
+    sub: "B. 1997",
+    shape: introPlaying ? { kind: "square", scale: 1 } : randomShape(),
+  };
   const folderNodes = new Map();
   const itemNodes = new Map();
   const linkNodes = new Map();
@@ -302,7 +311,7 @@
 
   // --- progressive reveal state: the graph starts with only the root
   // square visible, and grows a branch at a time as you click through it. ---
-  let rootOpen = true;
+  let rootOpen = !introPlaying;
   let openFolderId = null;
 
   function buildNode(g, d) {
@@ -805,7 +814,7 @@
     // run: those often rebuild the panel and detach the clicked element, so
     // checking afterwards could miss that the click was in the panel. Any
     // click inside the panel's box counts as the panel, whatever it hit.
-    const ignored = ".panel, .node, .rail-item, .lightbox, a, button";
+    const ignored = ".panel, .node, .rail-item, .lightbox, .intro-screen, a, button";
     document.addEventListener(
       "click",
       (event) => {
@@ -1206,4 +1215,13 @@
 
   renderIndex(null);
   updateGraph();
+
+  // The loading intro hands over to the web: it needs to know where the
+  // body is on screen, and a way to open the web once the dot lands
+  window.SpiderWeb = {
+    bodyRect: () => nodeSel.filter((d) => d.type === "root").select(".node-shape").node().getBoundingClientRect(),
+    open: () => {
+      if (!rootOpen) toggleRoot();
+    },
+  };
 })();

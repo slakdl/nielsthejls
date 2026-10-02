@@ -7,8 +7,17 @@
   <meta name="description" content="Niels Thejls — 041375 26830178. 271450038 89463.">
   <link rel="icon" type="image/png" href="assets/Niels_Pas_Wide_compressed.png">
   <link rel="stylesheet" href="assets/css/style.css">
+  <script>
+    // the loading intro plays unless the visitor prefers reduced motion
+    if (!matchMedia("(prefers-reduced-motion: reduce)").matches) document.documentElement.classList.add("intro");
+  </script>
 </head>
 <body>
+
+  <div id="intro" class="intro-screen" aria-hidden="true">
+    <div class="intro-name"></div>
+    <span class="intro-dot"></span>
+  </div>
 
   <div class="scene">
     <svg id="graph" class="graph"></svg>
@@ -25,5 +34,6 @@
   <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
   <script src="assets/js/noise-field.js"></script>
   <script src="assets/js/app.js"></script>
+  <script src="assets/js/intro.js"></script>
 </body>
 </html>
