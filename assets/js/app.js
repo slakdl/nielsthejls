@@ -1216,10 +1216,19 @@
   renderIndex(null);
   updateGraph();
 
-  // The loading intro hands over to the web: it needs to know where the
-  // body is on screen, and a way to open the web once the dot lands
+  // The loading intro hands over to the web: the body is placed where the
+  // dot of the "i" sits, and the web grows from there once the intro is gone
   window.SpiderWeb = {
     bodyRect: () => nodeSel.filter((d) => d.type === "root").select(".node-shape").node().getBoundingClientRect(),
+    placeBody: (x, y) => {
+      const p = keepInView({ x, y });
+      rootNode.fx = rootNode.x = p.x;
+      rootNode.fy = rootNode.y = p.y;
+      spider.moved = true; // stays there, as if it had walked there
+      simulation.force("x").x(simulation.force("x").x());
+      simulation.force("y").y(simulation.force("y").y());
+      ticked();
+    },
     open: () => {
       if (!rootOpen) toggleRoot();
     },

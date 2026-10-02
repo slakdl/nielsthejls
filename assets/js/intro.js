@@ -1,12 +1,13 @@
 // Loading intro: "Niels Thejls" is written out left to right in the middle
 // of the screen, each new character a flickering digit that then settles
 // into its letter, like the numbers across the site (and the intro of the
-// Instagram story). Then the dot of the "i" lifts off, turns orange and glides onto the spider's body, the
-// intro dissolves and the web opens from that square.
+// Instagram story). Then the dot of the "i" turns orange and grows, in
+// place, into the spider's body: the intro dissolves and the web grows out
+// from exactly where the dot was.
 //
 // The "i" is set dotless (ı) and its dot is a separate square placed exactly
 // where the font would draw it, measured from the font itself, so it can
-// leave. A click or key press skips straight to the site.
+// become the body. A click or key press skips straight to the site.
 (function () {
   const html = document.documentElement;
   if (!html.classList.contains("intro")) return;
@@ -20,7 +21,7 @@
   const WRITE_FROM = 400; // ms before the first character appears
   const WRITE_FOR = 900; // ms to write out and resolve the whole name
   const HOLD = 450; // ms the finished name rests before the dot lifts
-  const GLIDE = 800; // ms for the dot to reach the body
+  const GROW = 420; // ms for the dot to grow into the body, where it is
 
   const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
@@ -62,7 +63,7 @@
   }
 
   let start = null;
-  let from = null; // where the dot lifts off from
+  let from = null; // where the dot sits, and where the body will be
   let finished = false;
 
   function frame(now) {
@@ -84,7 +85,7 @@
     const liftAt = WRITE_FROM + WRITE_FOR + HOLD;
 
     // the dot appears the moment its "i" resolves: everything to its left is
-    // already a letter, so it stays put until it lifts off
+    // already a letter, so it never moves
     if (!from && resolved > I_AT) {
       from = dotBox();
       place(from);
@@ -92,17 +93,17 @@
     }
 
     if (allResolved && t >= liftAt) {
+      // the dot stays put: it turns orange and the spider's body is set
+      // down right under it, then it grows to the body's size
       if (!nameEl.classList.contains("gone")) {
         nameEl.classList.add("gone");
         dot.classList.add("lifted");
+        SpiderWeb.placeBody(from.x + from.side / 2, from.y + from.side / 2);
       }
-      const to = SpiderWeb.bodyRect();
-      const p = ease(Math.min(1, (t - liftAt) / GLIDE));
-      place({
-        x: from.x + (to.left - from.x) * p,
-        y: from.y + (to.top - from.y) * p,
-        side: from.side + (to.width - from.side) * p,
-      });
+      const body = SpiderWeb.bodyRect().width;
+      const p = ease(Math.min(1, (t - liftAt) / GROW));
+      const side = from.side + (body - from.side) * p;
+      place({ x: from.x + (from.side - side) / 2, y: from.y + (from.side - side) / 2, side });
       if (p === 1) return finish();
     }
     requestAnimationFrame(frame);
