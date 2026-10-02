@@ -23,39 +23,25 @@
   const rand = (lo, hi) => lo + Math.random() * (hi - lo);
   const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
-  // One fixed slot per character, exactly as wide as its final letter, so
-  // nothing shifts as digits turn into letters. A zero-size probe marks the
-  // baseline.
+  // Digits keep their natural width and flicker until each lands on its
+  // letter. The name is pinned at the left edge of where the finished name
+  // sits, so letters settling to the right of the "i" never move it.
   const font = getComputedStyle(nameEl);
   const measure = document.createElement("canvas").getContext("2d");
   measure.font = `${font.fontWeight} ${font.fontSize} ${font.fontFamily}`;
-  const tracking = parseFloat(font.letterSpacing) || 0;
-  const digitWidth = (d) => measure.measureText(d).width;
 
-  // A digit is squeezed to fit its letter's slot, so none spills into its
-  // neighbours; narrow slots (i, l, j) only get a 1, which squeezes into a
-  // stem rather than a smudge
-  const chars = [...NAME].map((c, i) => {
-    const final = i === I_AT ? "ı" : c;
-    const width = measure.measureText(final).width + tracking;
-    const slot = document.createElement("span");
-    slot.style.cssText = `display:inline-block;text-align:center;width:${width}px`;
-    const glyph = document.createElement("span");
-    glyph.style.cssText = "display:inline-block;transform-origin:center";
-    slot.append(glyph);
-    nameEl.append(slot);
-    const narrow = width < digitWidth("0") * 0.6;
-    const ch = { span: slot, glyph, final, width, narrow, resolveAt: 300 + i * 70 + rand(0, 300) };
-    if (final === " ") glyph.textContent = " ";
-    else setDigit(ch);
-    return ch;
+  const finals = [...NAME].map((c, i) => (i === I_AT ? "ı" : c));
+  nameEl.textContent = finals.join("");
+  nameEl.style.width = `${nameEl.getBoundingClientRect().width}px`;
+  nameEl.textContent = "";
+
+  const digit = () => String(Math.floor(Math.random() * 10));
+  const chars = finals.map((final, i) => {
+    const span = document.createElement("span");
+    span.textContent = final === " " ? " " : digit();
+    nameEl.append(span);
+    return { span, final, resolveAt: 300 + i * 70 + rand(0, 300) };
   });
-
-  function setDigit(ch) {
-    const d = ch.narrow ? "1" : String(Math.floor(Math.random() * 10));
-    ch.glyph.textContent = d;
-    ch.glyph.style.transform = `scaleX(${Math.min(1, ch.width / digitWidth(d))})`;
-  }
   const probe = document.createElement("span");
   probe.style.cssText = "display:inline-block;width:0;height:0;vertical-align:baseline";
   nameEl.append(probe);
@@ -85,25 +71,24 @@
     if (start === null) start = now;
     const t = now - start;
 
-    // the name: every digit keeps flickering in its slot until it turns
+    // the name: every digit keeps flickering until it turns
     // into its letter, roughly left to right
     let allResolved = true;
     chars.forEach((c) => {
       if (t < c.resolveAt) {
-        if (c.final !== " ") setDigit(c);
+        if (c.final !== " ") c.span.textContent = digit();
         allResolved = false;
-      } else if (c.glyph.textContent !== c.final) {
-        c.glyph.textContent = c.final;
-        c.glyph.style.transform = "none";
+      } else {
+        c.span.textContent = c.final;
       }
     });
 
     const lastResolve = Math.max(...chars.map((c) => c.resolveAt));
     const liftAt = lastResolve + HOLD;
 
-    // the dot appears the moment its i resolves, in its final place: the
-    // slots never move, so it stays there until it lifts off
-    if (t >= chars[I_AT].resolveAt && !from) {
+    // the dot appears once the "N" and the "i" are both letters: nothing to
+    // its left changes after that, so it stays put until it lifts off
+    if (!from && chars.slice(0, I_AT + 1).every((c) => t >= c.resolveAt)) {
       from = dotBox();
       place(from);
       dot.style.opacity = 1;
