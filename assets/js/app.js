@@ -191,12 +191,22 @@
   // after the fact.
   const GRAPH_SAFE_MARGIN = 480;
 
+  // Phones show only the web, centred, with no panel line to stay left of;
+  // the web and the spider shrink to fit the smaller screen.
+  const MOBILE_BREAKPOINT = 860; // must match the CSS breakpoint
+  const isMobile = () => window.innerWidth <= MOBILE_BREAKPOINT;
+  const webScale = () => (isMobile() ? Math.min(0.8, Math.max(0.5, Math.min(window.innerWidth, window.innerHeight) / 620)) : 1);
+
   // Everything in the web (nodes, spider legs) stays inside the viewport
   // and left of the panel line. The bottom edge leaves room for labels.
   const VIEW_PAD = 24;
   const LABEL_ROOM = 44;
   function viewBounds() {
-    return { left: VIEW_PAD, top: VIEW_PAD, right: width - GRAPH_SAFE_MARGIN, bottom: height - LABEL_ROOM };
+    // on phones the sides also keep room for half a label, which is centred
+    // under its shape and can be wider than the narrow screen's edge allows
+    const side = isMobile() ? 58 : VIEW_PAD;
+    const right = isMobile() ? width - side : width - GRAPH_SAFE_MARGIN;
+    return { left: side, top: VIEW_PAD, right, bottom: height - LABEL_ROOM };
   }
   function keepInView(p) {
     const v = viewBounds();
@@ -216,21 +226,21 @@
       d3
         .forceLink([])
         .id((d) => d.id)
-        .distance((d) => d.distance ?? (d.source.type === "root" ? 140 : 90))
+        .distance((d) => (d.distance ?? (d.source.type === "root" ? 140 : 90)) * webScale())
         .strength(0.9)
     )
-    .force("charge", d3.forceManyBody().strength(-260))
+    .force("charge", d3.forceManyBody().strength(() => -260 * webScale()))
     .force(
       "collide",
-      d3.forceCollide().radius((d) => radius(d) + 26)
+      d3.forceCollide().radius((d) => radius(d) + 26 * webScale())
     )
-    .force("x", d3.forceX(() => rootNode.fx + width * 0.04).strength(0.045))
+    .force("x", d3.forceX(() => rootNode.fx + (isMobile() ? 0 : width * 0.04)).strength(0.045))
     .force("y", d3.forceY(() => rootNode.fy + height * 0.01).strength(0.06))
     .on("tick", ticked);
 
   function anchorRoot() {
-    rootNode.fx = width * 0.3;
-    rootNode.fy = height * 0.49;
+    rootNode.fx = width * (isMobile() ? 0.5 : 0.3);
+    rootNode.fy = height * (isMobile() ? 0.5 : 0.49);
   }
   anchorRoot();
   rootNode.x = rootNode.fx;
@@ -404,6 +414,10 @@
     width = window.innerWidth;
     height = window.innerHeight;
     svg.attr("width", width).attr("height", height);
+    // crossing the phone breakpoint changes the web's scale: re-read the forces
+    simulation.force("link").distance(simulation.force("link").distance());
+    simulation.force("charge").strength(simulation.force("charge").strength());
+    simulation.force("collide").radius(simulation.force("collide").radius());
     if (spider.moved) {
       const p = keepInView({ x: rootNode.fx, y: rootNode.fy });
       rootNode.fx = p.x;
@@ -436,13 +450,22 @@
   // and the walk are one continuous motion.
   const spider = (() => {
     const HIP_ANGLES = [34, 68, 112, 148]; // degrees from the heading, front to back
-    const UPPER = 78, LOWER = 96; // leg segment lengths
-    const REACH = 128; // body to a comfortable foothold
+    // leg sizes at full scale; fit() shrinks them on phones
+    let UPPER = 78, LOWER = 96; // leg segment lengths
+    let REACH = 128; // body to a comfortable foothold
     const WALK_SPEED = 120; // px per second
     const REST_BEFORE_FOLD = 700; // ms after arriving
-    const BODY_MARGIN = 70; // keeps the body far enough in for its legs
+    let BODY_MARGIN = 70; // keeps the body far enough in for its legs
     const FOLD_MS = 240; // each leg's snap back into the body
-    const SHAPE_FULL_AT = 36; // px from the body where knee/foot shapes reach full size
+    let SHAPE_FULL_AT = 36; // px from the body where knee/foot shapes reach full size
+    function fit() {
+      const k = webScale();
+      UPPER = 78 * k;
+      LOWER = 96 * k;
+      REACH = 128 * k;
+      BODY_MARGIN = 70 * k;
+      SHAPE_FULL_AT = 36 * k;
+    }
     const SPRING = 0.22; // pull toward the leg's wanted position, per tick
     const DAMPING = 0.3; // velocity lost per tick: lower is springier
 
@@ -628,7 +651,10 @@
         y: clamp(y, v.top + BODY_MARGIN, v.bottom - BODY_MARGIN),
       };
       state.moved = true;
-      if (!state.legsOut) popLegs(now);
+      if (!state.legsOut) {
+        fit();
+        popLegs(now);
+      }
       marker.interrupt().attr("x", state.target.x - 2.5).attr("y", state.target.y - 2.5).attr("opacity", 1);
       setPhase("think", now, rand(220, 480)); // considers it before moving
       simulation.alphaTarget(0.2).restart();
@@ -783,7 +809,6 @@
     document.addEventListener(
       "click",
       (event) => {
-        if (window.innerWidth <= MOBILE_BREAKPOINT) return;
         if (event.target.closest(ignored)) return;
         const panel = document.querySelector(".panel").getBoundingClientRect();
         const inPanel =
@@ -849,7 +874,12 @@
     setActiveFolder(openFolderId);
   }
 
+  // On phones the panel is a sheet that only shows while a project or page
+  // is open; the index itself lives in the web
+  const showSheet = (on) => d3.select(".panel").classed("sheet-open", on);
+
   function renderIndex(openId) {
+    showSheet(false);
     NoiseField.stop();
     mediaRail.classed("visible", false).html("");
     updateMediaOverlap();
@@ -935,7 +965,6 @@
     return area > 0 ? (ow * oh) / area : 0;
   }
 
-  const MOBILE_BREAKPOINT = 860; // must match the CSS breakpoint
 
   // On mobile there's no open canvas to scatter across (the string nav is
   // hidden entirely), so media is just appended in-flow below the project
@@ -1040,6 +1069,7 @@
   }
 
   function openProject(folderId, itemId) {
+    showSheet(true);
     const folder = folders.find((f) => f.id === folderId);
     const item = folder.items.find((it) => it.id === itemId);
 
@@ -1135,6 +1165,7 @@
   }
 
   function openFolderPage(folderId) {
+    showSheet(true);
     const folder = folders.find((f) => f.id === folderId);
 
     rootOpen = true;

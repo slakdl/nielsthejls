@@ -632,29 +632,32 @@ a.resume-org:hover {
 }
 
 @media (max-width: 860px) {
-  html, body {
-    overflow: auto;
+  /* phones: only the spider navigation, centred, with the same spider bug;
+     the panel becomes a sheet that shows while a project or page is open */
+  body {
+    touch-action: manipulation; /* taps go straight to the spider, no double-tap zoom */
   }
 
   .scene {
-    height: auto;
-    min-height: 100vh;
-    display: block;
-  }
-
-  /* the string navigation is desktop-only; mobile shows just the index */
-  .graph {
-    display: none;
+    height: 100vh;
+    height: 100dvh;
   }
 
   .panel {
-    position: relative;
+    display: none;
+    position: fixed;
     top: auto;
-    right: auto;
+    right: 12px;
+    bottom: 12px;
+    left: 12px;
     transform: none;
     width: auto;
-    margin: 24px 20px 40px;
-    max-height: none;
+    max-height: 72dvh;
+    z-index: 10;
+  }
+
+  .panel.sheet-open {
+    display: block;
   }
 
   .media-rail {
