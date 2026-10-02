@@ -1,7 +1,7 @@
-// Loading intro: "Niels Thejls" stands in the middle of the screen as
-// random digits from the first frame, and each digit turns into its letter
-// in place, like the numbers across the site. Then the dot of
-// the "i" lifts off, turns orange and glides onto the spider's body, the
+// Loading intro: "Niels Thejls" is written out left to right in the middle
+// of the screen, each new character a flickering digit that then settles
+// into its letter, like the numbers across the site (and the intro of the
+// Instagram story). Then the dot of the "i" lifts off, turns orange and glides onto the spider's body, the
 // intro dissolves and the web opens from that square.
 //
 // The "i" is set dotless (ı) and its dot is a separate square placed exactly
@@ -17,15 +17,15 @@
 
   const NAME = "Niels Thejls";
   const I_AT = 1; // the "i" of Niels
+  const WRITE_FROM = 400; // ms before the first character appears
+  const WRITE_FOR = 900; // ms to write out and resolve the whole name
   const HOLD = 450; // ms the finished name rests before the dot lifts
   const GLIDE = 800; // ms for the dot to reach the body
 
-  const rand = (lo, hi) => lo + Math.random() * (hi - lo);
   const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
-  // Digits keep their natural width and flicker until each lands on its
-  // letter. The name is pinned at the left edge of where the finished name
-  // sits, so letters settling to the right of the "i" never move it.
+  // The name is pinned at the left edge of where the finished name sits, so
+  // nothing written to the right of the "i" ever moves it.
   const font = getComputedStyle(nameEl);
   const measure = document.createElement("canvas").getContext("2d");
   measure.font = `${font.fontWeight} ${font.fontSize} ${font.fontFamily}`;
@@ -36,11 +36,10 @@
   nameEl.textContent = "";
 
   const digit = () => String(Math.floor(Math.random() * 10));
-  const chars = finals.map((final, i) => {
+  const chars = finals.map((final) => {
     const span = document.createElement("span");
-    span.textContent = final === " " ? " " : digit();
     nameEl.append(span);
-    return { span, final, resolveAt: 300 + i * 70 + rand(0, 300) };
+    return { span, final };
   });
   const probe = document.createElement("span");
   probe.style.cssText = "display:inline-block;width:0;height:0;vertical-align:baseline";
@@ -71,24 +70,22 @@
     if (start === null) start = now;
     const t = now - start;
 
-    // the name: every digit keeps flickering until it turns
-    // into its letter, roughly left to right
-    let allResolved = true;
-    chars.forEach((c) => {
-      if (t < c.resolveAt) {
-        if (c.final !== " ") c.span.textContent = digit();
-        allResolved = false;
-      } else {
-        c.span.textContent = c.final;
-      }
+    // the name: written out left to right, the writing a little ahead of
+    // the resolving; characters not yet resolved flicker as digits
+    const p = Math.min(1, Math.max(0, (t - WRITE_FROM) / WRITE_FOR));
+    const shown = Math.ceil(chars.length * Math.min(1, p * 1.6));
+    const resolved = Math.floor(chars.length * p);
+    chars.forEach((c, i) => {
+      if (i >= shown) c.span.textContent = "";
+      else if (i < resolved || c.final === " ") c.span.textContent = c.final;
+      else c.span.textContent = digit();
     });
+    const allResolved = p === 1;
+    const liftAt = WRITE_FROM + WRITE_FOR + HOLD;
 
-    const lastResolve = Math.max(...chars.map((c) => c.resolveAt));
-    const liftAt = lastResolve + HOLD;
-
-    // the dot appears once the "N" and the "i" are both letters: nothing to
-    // its left changes after that, so it stays put until it lifts off
-    if (!from && chars.slice(0, I_AT + 1).every((c) => t >= c.resolveAt)) {
+    // the dot appears the moment its "i" resolves: everything to its left is
+    // already a letter, so it stays put until it lifts off
+    if (!from && resolved > I_AT) {
       from = dotBox();
       place(from);
       dot.style.opacity = 1;
