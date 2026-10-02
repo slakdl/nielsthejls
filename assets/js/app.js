@@ -178,6 +178,7 @@
   });
 
   const svg = d3.select("#graph");
+  const legLayer = svg.append("g").attr("class", "legs");
   const linkLayer = svg.append("g").attr("class", "links");
   const nodeLayer = svg.append("g").attr("class", "nodes");
 
@@ -211,8 +212,8 @@
       "collide",
       d3.forceCollide().radius((d) => radius(d) + 26)
     )
-    .force("x", d3.forceX(() => width * 0.34).strength(0.045))
-    .force("y", d3.forceY(() => height * 0.5).strength(0.06))
+    .force("x", d3.forceX(() => rootNode.fx + width * 0.04).strength(0.045))
+    .force("y", d3.forceY(() => rootNode.fy + height * 0.01).strength(0.06))
     .on("tick", ticked);
 
   function anchorRoot() {
@@ -389,9 +390,186 @@
     width = window.innerWidth;
     height = window.innerHeight;
     svg.attr("width", width).attr("height", height);
-    anchorRoot();
+    if (spider.moved) {
+      rootNode.fx = Math.min(Math.max(rootNode.fx, 40), width - GRAPH_SAFE_MARGIN);
+      rootNode.fy = Math.min(Math.max(rootNode.fy, 40), height - 40);
+    } else {
+      anchorRoot();
+    }
     simulation.alpha(0.3).restart();
   }
+
+  // --- spider: click empty space and the web grows legs and crawls there ---
+  //
+  // Procedural walk: each leg has a planted foot. As the body moves, a leg
+  // whose foot falls too far behind its resting spot steps forward, in two
+  // alternating groups so the bug always stands on half its legs. Legs are
+  // two straight segments solved with simple IK, joints and feet are small
+  // squares, and they fold away again once the bug has rested a moment.
+  const spider = (() => {
+    const LEGS_PER_SIDE = 4;
+    const HIP_ANGLES = [38, 72, 108, 142]; // degrees from the heading, front to back
+    const UPPER = 48, LOWER = 54; // leg segment lengths
+    const REACH = 78; // hip to resting foot
+    const STEP_AT = 36; // how far a foot may lag before it steps
+    const STEP_MS = 80;
+    const MAX_SPEED = 190; // px per second
+    const REST_BEFORE_FOLD = 1600; // ms
+
+    const state = {
+      moved: false,
+      target: null,
+      heading: -Math.PI / 2, // facing up to start
+      speed: 0,
+      grow: 0, // 0 folded … 1 fully grown
+      restingSince: 0,
+      legs: [],
+      lastTime: 0,
+      running: false,
+    };
+
+    for (let s of [-1, 1]) {
+      HIP_ANGLES.forEach((deg, i) => {
+        state.legs.push({ side: s, front: i < 2, angle: (s * deg * Math.PI) / 180, group: (i + (s > 0 ? 1 : 0)) % 2, foot: null, from: null, to: null, t0: 0 });
+      });
+    }
+
+    const legSel = legLayer.selectAll("g").data(state.legs).join("g").attr("class", "leg");
+    legSel.append("polyline");
+    legSel.append("rect").attr("class", "leg-joint").attr("width", 3).attr("height", 3);
+    legSel.append("rect").attr("class", "leg-foot").attr("width", 4).attr("height", 4);
+    const marker = legLayer.append("rect").attr("class", "spider-target").attr("width", 5).attr("height", 5).attr("opacity", 0);
+
+    const body = () => ({ x: rootNode.fx, y: rootNode.fy });
+    const dirAt = (a) => ({ x: Math.cos(a), y: Math.sin(a) });
+
+    function hip(leg) {
+      const b = body(), d = dirAt(state.heading + leg.angle);
+      return { x: b.x + d.x * 8, y: b.y + d.y * 8 };
+    }
+
+    function restSpot(leg, lead) {
+      const b = body(), d = dirAt(state.heading + leg.angle), v = dirAt(state.heading);
+      return { x: b.x + d.x * REACH + v.x * lead, y: b.y + d.y * REACH + v.y * lead };
+    }
+
+    // Two-segment IK; front knees point forward, back knees backward,
+    // mirrored left and right like a spider's spread
+    function knee(leg, h, f) {
+      const dx = f.x - h.x, dy = f.y - h.y;
+      const d = Math.min(Math.hypot(dx, dy), UPPER + LOWER - 0.5) || 0.01;
+      const a = Math.acos(Math.min(1, Math.max(-1, (UPPER * UPPER + d * d - LOWER * LOWER) / (2 * UPPER * d))));
+      const base = Math.atan2(dy, dx), v = dirAt(state.heading);
+      const k1 = { x: h.x + Math.cos(base + a) * UPPER, y: h.y + Math.sin(base + a) * UPPER };
+      const k2 = { x: h.x + Math.cos(base - a) * UPPER, y: h.y + Math.sin(base - a) * UPPER };
+      const ahead = (k) => (k.x - h.x) * v.x + (k.y - h.y) * v.y;
+      return ahead(k1) > ahead(k2) === leg.front ? k1 : k2;
+    }
+
+    function crawlTo(x, y) {
+      state.target = { x: Math.min(Math.max(x, 40), width - GRAPH_SAFE_MARGIN), y: Math.min(Math.max(y, 40), height - 40) };
+      state.moved = true;
+      if (state.grow === 0) state.legs.forEach((leg) => (leg.foot = restSpot(leg, 0)));
+      marker.attr("x", state.target.x - 2.5).attr("y", state.target.y - 2.5).attr("opacity", 1);
+      simulation.alphaTarget(0.25).restart();
+      if (!state.running) {
+        state.running = true;
+        state.lastTime = performance.now();
+        requestAnimationFrame(frame);
+      }
+    }
+
+    function frame(now) {
+      const dt = Math.min(0.05, (now - state.lastTime) / 1000);
+      state.lastTime = now;
+
+      // body: steer toward the target, ease in near the end
+      if (state.target) {
+        const dx = state.target.x - rootNode.fx, dy = state.target.y - rootNode.fy;
+        const dist = Math.hypot(dx, dy);
+        if (dist < 1.5) {
+          state.target = null;
+          state.speed = 0;
+          state.restingSince = now;
+          marker.transition().duration(400).attr("opacity", 0);
+          simulation.alphaTarget(0);
+        } else {
+          const want = Math.atan2(dy, dx);
+          let turn = want - state.heading;
+          turn = Math.atan2(Math.sin(turn), Math.cos(turn));
+          state.heading += turn * Math.min(1, dt * 7);
+          state.speed = Math.min(MAX_SPEED, state.speed + 900 * dt, dist * 4);
+          const step = Math.min(dist, state.speed * dt);
+          rootNode.fx += (dx / dist) * step;
+          rootNode.fy += (dy / dist) * step;
+        }
+        // forceX/forceY cache their targets, so re-read them as the body moves
+        simulation.force("x").x(simulation.force("x").x());
+        simulation.force("y").y(simulation.force("y").y());
+      }
+
+      // legs grow while moving, fold away after a rest
+      const folding = !state.target && now - state.restingSince > REST_BEFORE_FOLD;
+      state.grow = Math.min(1, Math.max(0, state.grow + (folding ? -dt * 2.5 : dt * 4)));
+
+      // gait: a lagging foot steps, but only while the other group is planted
+      const lead = state.speed * 0.2; // land ahead of the body, not under it
+      const groupStepping = [0, 1].map((g) => state.legs.some((l) => l.group === g && l.to));
+      state.legs.forEach((leg) => {
+        if (leg.to) {
+          const t = Math.min(1, (now - leg.t0) / STEP_MS);
+          leg.foot = { x: leg.from.x + (leg.to.x - leg.from.x) * t, y: leg.from.y + (leg.to.y - leg.from.y) * t };
+          if (t === 1) leg.to = null;
+        } else {
+          const spot = restSpot(leg, lead);
+          const lag = Math.hypot(spot.x - leg.foot.x, spot.y - leg.foot.y);
+          // step in turns with the other group; a badly lagging foot steps anyway
+          if ((lag > STEP_AT && !groupStepping[1 - leg.group]) || lag > STEP_AT * 2) {
+            leg.from = leg.foot;
+            leg.to = spot;
+            leg.t0 = now;
+            groupStepping[leg.group] = true;
+          }
+        }
+      });
+
+      draw();
+
+      if (state.target || state.grow > 0 || state.legs.some((l) => l.to)) {
+        requestAnimationFrame(frame);
+      } else {
+        state.running = false;
+      }
+    }
+
+    function draw() {
+      const g = state.grow;
+      legSel.attr("opacity", g > 0 ? 1 : 0).each(function (leg) {
+        const h = hip(leg), k = knee(leg, h, leg.foot);
+        const kx = h.x + (k.x - h.x) * g, ky = h.y + (k.y - h.y) * g;
+        const fx = h.x + (leg.foot.x - h.x) * g, fy = h.y + (leg.foot.y - h.y) * g;
+        const el = d3.select(this);
+        el.select("polyline").attr("points", `${h.x},${h.y} ${kx},${ky} ${fx},${fy}`);
+        el.select(".leg-joint").attr("x", kx - 1.5).attr("y", ky - 1.5);
+        el.select(".leg-foot").attr("x", fx - 2).attr("y", fy - 2);
+      });
+      // the body square turns to face where it's going
+      nodeSel
+        .filter((d) => d.type === "root")
+        .select(".node-shape")
+        .attr("transform", `rotate(${(state.heading * 180) / Math.PI + 90})`);
+    }
+
+    // clicks on empty page space only: not the panel, nodes, media or lightbox
+    document.addEventListener("click", (event) => {
+      if (window.innerWidth <= MOBILE_BREAKPOINT) return;
+      if (event.target.closest(".panel, .node, .rail-item, .lightbox, a, button")) return;
+      crawlTo(event.clientX, event.clientY);
+    });
+
+    return state;
+  })();
+
   window.addEventListener("resize", resize);
   resize();
 

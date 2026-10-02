@@ -99,6 +99,23 @@ body {
   stroke-width: 1;
 }
 
+/* spider legs (experiment) */
+.graph .leg polyline {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1;
+  stroke-linejoin: miter;
+  stroke-linecap: square;
+}
+
+.graph .leg rect {
+  fill: var(--ink);
+}
+
+.graph .spider-target {
+  fill: var(--accent);
+}
+
 .graph .link.muted {
   stroke: var(--muted);
   stroke-dasharray: 3 3;
