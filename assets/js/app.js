@@ -774,12 +774,25 @@
         .attr("transform", `rotate(${(state.heading * 180) / Math.PI + 90})`);
     }
 
-    // clicks on empty page space only: not the panel, nodes, media or lightbox
-    document.addEventListener("click", (event) => {
-      if (window.innerWidth <= MOBILE_BREAKPOINT) return;
-      if (event.target.closest(".panel, .node, .rail-item, .lightbox, a, button")) return;
-      crawlTo(event.clientX, event.clientY);
-    });
+    // Clicks on empty page space only: never the panel, nodes, media or
+    // lightbox. Listens in the capture phase, before the menu's own handlers
+    // run: those often rebuild the panel and detach the clicked element, so
+    // checking afterwards could miss that the click was in the panel. Any
+    // click inside the panel's box counts as the panel, whatever it hit.
+    const ignored = ".panel, .node, .rail-item, .lightbox, a, button";
+    document.addEventListener(
+      "click",
+      (event) => {
+        if (window.innerWidth <= MOBILE_BREAKPOINT) return;
+        if (event.target.closest(ignored)) return;
+        const panel = document.querySelector(".panel").getBoundingClientRect();
+        const inPanel =
+          event.clientX >= panel.left && event.clientX <= panel.right && event.clientY >= panel.top && event.clientY <= panel.bottom;
+        if (inPanel) return;
+        crawlTo(event.clientX, event.clientY);
+      },
+      true
+    );
 
     return state;
   })();
