@@ -1,5 +1,6 @@
-// Loading intro: "Niels Thejls" resolves out of random digits in the
-// middle of the screen, like the numbers across the site. Then the dot of
+// Loading intro: "Niels Thejls" stands in the middle of the screen as
+// random digits from the first frame, and each digit turns into its letter
+// in place, like the numbers across the site. Then the dot of
 // the "i" lifts off, turns orange and glides onto the spider's body, the
 // intro dissolves and the web opens from that square.
 //
@@ -22,17 +23,39 @@
   const rand = (lo, hi) => lo + Math.random() * (hi - lo);
   const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
-  // one span per character; a zero-size probe marks the baseline
+  // One fixed slot per character, exactly as wide as its final letter, so
+  // nothing shifts as digits turn into letters. A zero-size probe marks the
+  // baseline.
+  const font = getComputedStyle(nameEl);
+  const measure = document.createElement("canvas").getContext("2d");
+  measure.font = `${font.fontWeight} ${font.fontSize} ${font.fontFamily}`;
+  const tracking = parseFloat(font.letterSpacing) || 0;
+  const digitWidth = (d) => measure.measureText(d).width;
+
+  // A digit is squeezed to fit its letter's slot, so none spills into its
+  // neighbours; narrow slots (i, l, j) only get a 1, which squeezes into a
+  // stem rather than a smudge
   const chars = [...NAME].map((c, i) => {
-    const span = document.createElement("span");
-    nameEl.append(span);
-    return {
-      span,
-      final: i === I_AT ? "ı" : c,
-      showAt: 80 + i * 35,
-      resolveAt: 250 + i * 70 + rand(0, 250),
-    };
+    const final = i === I_AT ? "ı" : c;
+    const width = measure.measureText(final).width + tracking;
+    const slot = document.createElement("span");
+    slot.style.cssText = `display:inline-block;text-align:center;width:${width}px`;
+    const glyph = document.createElement("span");
+    glyph.style.cssText = "display:inline-block;transform-origin:center";
+    slot.append(glyph);
+    nameEl.append(slot);
+    const narrow = width < digitWidth("0") * 0.6;
+    const ch = { span: slot, glyph, final, width, narrow, resolveAt: 300 + i * 70 + rand(0, 300) };
+    if (final === " ") glyph.textContent = " ";
+    else setDigit(ch);
+    return ch;
   });
+
+  function setDigit(ch) {
+    const d = ch.narrow ? "1" : String(Math.floor(Math.random() * 10));
+    ch.glyph.textContent = d;
+    ch.glyph.style.transform = `scaleX(${Math.min(1, ch.width / digitWidth(d))})`;
+  }
   const probe = document.createElement("span");
   probe.style.cssText = "display:inline-block;width:0;height:0;vertical-align:baseline";
   nameEl.append(probe);
@@ -40,11 +63,8 @@
   // Where the font puts the dot of an "i": the dotless i's stem gives the
   // width and centre, the dotted i's ink top gives the height
   function dotBox() {
-    const cs = getComputedStyle(nameEl);
-    const ctx = document.createElement("canvas").getContext("2d");
-    ctx.font = `${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
-    const stem = ctx.measureText("ı");
-    const top = probe.getBoundingClientRect().top - ctx.measureText("i").actualBoundingBoxAscent;
+    const stem = measure.measureText("ı");
+    const top = probe.getBoundingClientRect().top - measure.measureText("i").actualBoundingBoxAscent;
     const left = chars[I_AT].span.getBoundingClientRect().left;
     const x0 = left - stem.actualBoundingBoxLeft;
     const side = stem.actualBoundingBoxRight + stem.actualBoundingBoxLeft;
@@ -65,33 +85,32 @@
     if (start === null) start = now;
     const t = now - start;
 
-    // the name: digits that settle into letters, left to right-ish
+    // the name: every digit keeps flickering in its slot until it turns
+    // into its letter, roughly left to right
     let allResolved = true;
     chars.forEach((c) => {
-      if (t < c.showAt) {
-        c.span.textContent = "";
+      if (t < c.resolveAt) {
+        if (c.final !== " ") setDigit(c);
         allResolved = false;
-      } else if (t < c.resolveAt) {
-        c.span.textContent = c.final === " " ? " " : String(Math.floor(Math.random() * 10));
-        allResolved = false;
-      } else {
-        c.span.textContent = c.final;
+      } else if (c.glyph.textContent !== c.final) {
+        c.glyph.textContent = c.final;
+        c.glyph.style.transform = "none";
       }
     });
 
     const lastResolve = Math.max(...chars.map((c) => c.resolveAt));
     const liftAt = lastResolve + HOLD;
 
-    // the dot appears the moment its i resolves, and sits on it while the
-    // letters before it settle (digits and letters differ in width)
-    if (t >= chars[I_AT].resolveAt && t < liftAt) {
-      place(dotBox());
+    // the dot appears the moment its i resolves, in its final place: the
+    // slots never move, so it stays there until it lifts off
+    if (t >= chars[I_AT].resolveAt && !from) {
+      from = dotBox();
+      place(from);
       dot.style.opacity = 1;
     }
 
     if (allResolved && t >= liftAt) {
-      if (!from) {
-        from = dotBox();
+      if (!nameEl.classList.contains("gone")) {
         nameEl.classList.add("gone");
         dot.classList.add("lifted");
       }
