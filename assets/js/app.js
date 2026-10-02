@@ -163,16 +163,10 @@
   // Persistent node objects — built once so a node keeps its position (and
   // the simulation keeps its momentum) across every reveal/hide cycle,
   // instead of resetting each time it re-enters the graph.
-  // While the loading intro plays (intro.js), the web starts closed and the
-  // body is a full square: the dot of the "i" in the intro becomes it
+  // While the loading intro plays (intro.js), the web starts closed: the
+  // dot of the "i" in the intro settles on the body's shape and becomes it
   const introPlaying = document.documentElement.classList.contains("intro");
-  const rootNode = {
-    id: "root",
-    type: "root",
-    label: "Niels Thejls",
-    sub: "B. 1997",
-    shape: introPlaying ? { kind: "square", scale: 1 } : randomShape(),
-  };
+  const rootNode = { id: "root", type: "root", label: "Niels Thejls", sub: "B. 1997", shape: randomShape() };
   const folderNodes = new Map();
   const itemNodes = new Map();
   const linkNodes = new Map();
@@ -1220,6 +1214,7 @@
   // dot of the "i" sits, and the web grows from there once the intro is gone
   window.SpiderWeb = {
     bodyRect: () => nodeSel.filter((d) => d.type === "root").select(".node-shape").node().getBoundingClientRect(),
+    bodyShape: () => rootNode.shape.kind, // square | circle | up | down
     placeBody: (x, y) => {
       const p = keepInView({ x, y });
       rootNode.fx = rootNode.x = p.x;

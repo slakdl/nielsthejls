@@ -1,9 +1,11 @@
 // Loading intro: "Niels Thejls" is written out left to right in the middle
 // of the screen, each new character a flickering digit that then settles
 // into its letter, like the numbers across the site (and the intro of the
-// Instagram story). Then the dot of the "i" turns orange and grows, in
-// place, into the spider's body: the intro dissolves and the web grows out
-// from exactly where the dot was.
+// Instagram story). The dot of the "i" is one of the site's shapes: it
+// flickers between square, circle and triangles while the name resolves,
+// then settles on the shape the spider's body has this visit. It turns
+// orange and grows, in place, into that body: the intro dissolves and the
+// web grows out from exactly where the dot was.
 //
 // The "i" is set dotless (ı) and its dot is a separate square placed exactly
 // where the font would draw it, measured from the font itself, so it can
@@ -22,6 +24,8 @@
   const WRITE_FOR = 900; // ms to write out and resolve the whole name
   const HOLD = 450; // ms the finished name rests before the dot lifts
   const GROW = 420; // ms for the dot to grow into the body, where it is
+  const SHAPES = ["square", "circle", "up", "down"];
+  const FLICKER = 70; // ms between the dot's random shapes
 
   const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
@@ -57,6 +61,11 @@
     return { x: x0, y: top, side };
   }
 
+  // the dot takes the same shape classes as the index list's icons
+  function setShape(kind) {
+    SHAPES.forEach((k) => dot.classList.toggle(`shape-${k}`, k === kind));
+  }
+
   function place(box) {
     dot.style.width = dot.style.height = `${box.side}px`;
     dot.style.transform = `translate(${box.x}px, ${box.y}px)`;
@@ -64,6 +73,7 @@
 
   let start = null;
   let from = null; // where the dot sits, and where the body will be
+  let lastFlicker = -Infinity;
   let finished = false;
 
   function frame(now) {
@@ -90,6 +100,14 @@
       from = dotBox();
       place(from);
       dot.style.opacity = 1;
+    }
+
+    // its shape flickers like the digits, then lands on the body's shape
+    if (from && !allResolved && t - lastFlicker >= FLICKER) {
+      lastFlicker = t;
+      setShape(SHAPES[Math.floor(Math.random() * SHAPES.length)]);
+    } else if (allResolved) {
+      setShape(SpiderWeb.bodyShape());
     }
 
     if (allResolved && t >= liftAt) {
