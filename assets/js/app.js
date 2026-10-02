@@ -445,6 +445,7 @@
   }
 
   function renderIndex(openId) {
+    NoiseField.stop();
     mediaRail.classed("visible", false).html("");
     updateMediaOverlap();
     nodeSel.classed("selected", false);
@@ -562,6 +563,10 @@
   }
 
   function renderMedia(item) {
+    // nothing to show: let the background draw itself instead
+    if (item.media && item.media.length) NoiseField.stop();
+    else NoiseField.start();
+
     if (window.innerWidth <= MOBILE_BREAKPOINT) {
       renderMobileMedia(item);
       return;
