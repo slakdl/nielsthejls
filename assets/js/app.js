@@ -309,19 +309,21 @@
   let openFolderId = null;
 
   function buildNode(g, d) {
-    drawShape(g, d.shape, fontSize(d) * 0.62).attr("class", "node-shape");
+    // shapes shrink with the web on phones; labels stay readable, just closer
+    const k = webScale();
+    drawShape(g, d.shape, fontSize(d) * 0.62 * k).attr("class", "node-shape");
 
     g.append("text")
       .attr("class", "node-label")
       .attr("text-anchor", "middle")
-      .attr("y", radius(d) + (d.type === "root" ? 19 : 16))
+      .attr("y", radius(d) * k + (d.type === "root" ? 19 : 16))
       .text(d.label);
 
     if (d.type === "root") {
       g.append("text")
         .attr("class", "node-sublabel")
         .attr("text-anchor", "middle")
-        .attr("y", radius(d) + 34)
+        .attr("y", radius(d) * k + 34)
         .text(d.sub);
     }
   }
@@ -512,7 +514,7 @@
     });
 
     // --- drawing ---
-    const slot = fontSize({ type: "item" }) * 0.62;
+    const slot = fontSize({ type: "item" }) * 0.62 * webScale();
     const legSel = legLayer.selectAll("g").data(state.legs).join("g").attr("class", "leg").attr("opacity", 0);
     legSel.append("path").attr("class", "link");
     legSel.each(function () {
