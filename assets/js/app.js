@@ -439,9 +439,10 @@
     const UPPER = 78, LOWER = 96; // leg segment lengths
     const REACH = 128; // body to a comfortable foothold
     const WALK_SPEED = 120; // px per second
-    const REST_BEFORE_FOLD = 2600; // ms
+    const REST_BEFORE_FOLD = 700; // ms after arriving
     const BODY_MARGIN = 70; // keeps the body far enough in for its legs
-    const FOLD_MS = 650; // each leg's slide back into the body
+    const FOLD_MS = 240; // each leg's snap back into the body
+    const SHAPE_FULL_AT = 36; // px from the body where knee/foot shapes reach full size
     const SPRING = 0.22; // pull toward the leg's wanted position, per tick
     const DAMPING = 0.3; // velocity lost per tick: lower is springier
 
@@ -540,9 +541,9 @@
       if (!leg.foot || (state.legsOut && state.now < leg.popAt)) return b; // never popped yet, or about to
       const pose = p.part === "knee" ? knee(leg) : leg.foot;
       if (state.legsOut) return pose;
-      // folding: the pose slides back into the body, easing in and out
+      // folding: the pose snaps back into the body, quick from the start
       const t = clamp((state.now - leg.foldAt) / FOLD_MS, 0, 1);
-      const out = 1 - t * t * (3 - 2 * t);
+      const out = (1 - t) * (1 - t);
       return { x: b.x + (pose.x - b.x) * out, y: b.y + (pose.y - b.y) * out };
     };
     const legSim = d3
@@ -570,7 +571,7 @@
     }
 
     // Each leg shoots out from the body toward its first foothold, a few
-    // ms apart, overshooting a touch before it settles
+    // ms apart: launched with a kick, so it overshoots before it settles
     function popLegs(now) {
       const b = body();
       // caught mid-fold: carry on from where the legs are instead of resetting
@@ -581,20 +582,18 @@
       state.legs.forEach((leg) => {
         leg.foot = chooseFoothold(leg, 0);
         leg.to = null;
-        leg.popAt = midFold ? now : now + rand(0, 90);
+        leg.popAt = midFold ? now : now + rand(0, 40);
         if (midFold) return;
+        const kick = { knee: knee(leg), foot: leg.foot };
         [leg.kneePoint, leg.footPoint].forEach((p) => {
           p.x = b.x + rand(-3, 3);
           p.y = b.y + rand(-3, 3);
-          p.vx = p.vy = 0;
+          p.vx = (kick[p.part].x - p.x) * 0.42;
+          p.vy = (kick[p.part].y - p.y) * 0.42;
         });
       });
-      if (!midFold) legSel.attr("opacity", 0);
-      legSel
-        .transition()
-        .delay((leg) => leg.popAt - now)
-        .duration(250)
-        .attr("opacity", 1);
+      // no fade in: the legs are just there, shooting out
+      legSel.attr("opacity", 1);
     }
 
     // one leg after another slides back in and fades, rather than all at once
@@ -603,14 +602,14 @@
       state.folding = true;
       state.legs.forEach((leg) => {
         leg.to = null;
-        leg.foldAt = now + rand(0, 320);
+        leg.foldAt = now + rand(0, 110);
       });
+      // the shapes shrink as they reach the body; the strings go at the very end
       legSel
         .interrupt()
         .transition()
-        .delay((leg) => leg.foldAt - now + FOLD_MS * 0.25)
-        .duration(FOLD_MS)
-        .ease(d3.easeCubicInOut)
+        .delay((leg) => leg.foldAt - now + FOLD_MS * 0.7)
+        .duration(120)
         .attr("opacity", 0);
     }
 
@@ -762,8 +761,11 @@
         const k = leg.kneePoint, f = leg.footPoint;
         const el = d3.select(this);
         el.select("path").attr("d", `M${b.x},${b.y}L${k.x},${k.y}L${f.x},${f.y}`);
-        el.select(".leg-knee").attr("transform", `translate(${k.x},${k.y})`);
-        el.select(".leg-foot").attr("transform", `translate(${f.x},${f.y})`);
+        // shapes grow as they leave the body and shrink back into it, so the
+        // orange centre is never covered
+        const size = (p) => clamp(Math.hypot(p.x - b.x, p.y - b.y) / SHAPE_FULL_AT, 0, 1);
+        el.select(".leg-knee").attr("transform", `translate(${k.x},${k.y}) scale(${size(k)})`);
+        el.select(".leg-foot").attr("transform", `translate(${f.x},${f.y}) scale(${size(f)})`);
       });
       // the body shape turns to face where it's going
       nodeSel
