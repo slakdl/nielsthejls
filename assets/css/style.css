@@ -99,19 +99,7 @@ body {
   stroke-width: 1;
 }
 
-/* spider legs (experiment) */
-.graph .leg polyline {
-  fill: none;
-  stroke: var(--ink);
-  stroke-width: 1;
-  stroke-linejoin: miter;
-  stroke-linecap: square;
-}
-
-.graph .leg rect {
-  fill: var(--ink);
-}
-
+/* spider legs (experiment): strings and shapes styled like the nav */
 .graph .spider-target {
   fill: var(--accent);
 }

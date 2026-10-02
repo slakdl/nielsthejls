@@ -403,13 +403,12 @@
   //
   // Procedural walk: each leg has a planted foot. As the body moves, a leg
   // whose foot falls too far behind its resting spot steps forward, in two
-  // alternating groups so the bug always stands on half its legs. Legs are
-  // two straight segments solved with simple IK, joints and feet are small
+  // alternating groups so the bug always stands on half its legs. Each leg
+  // is a string like the navigation ones, ending in a random shape, no label;
   // squares, and they fold away again once the bug has rested a moment.
   const spider = (() => {
     const LEGS_PER_SIDE = 4;
     const HIP_ANGLES = [38, 72, 108, 142]; // degrees from the heading, front to back
-    const UPPER = 48, LOWER = 54; // leg segment lengths
     const REACH = 78; // hip to resting foot
     const STEP_AT = 36; // how far a foot may lag before it steps
     const STEP_MS = 80;
@@ -435,35 +434,18 @@
     }
 
     const legSel = legLayer.selectAll("g").data(state.legs).join("g").attr("class", "leg");
-    legSel.append("polyline");
-    legSel.append("rect").attr("class", "leg-joint").attr("width", 3).attr("height", 3);
-    legSel.append("rect").attr("class", "leg-foot").attr("width", 4).attr("height", 4);
+    legSel.append("path").attr("class", "link");
+    legSel.each(function () {
+      drawShape(d3.select(this).append("g").attr("class", "leg-end"), randomShape(), fontSize({ type: "item" }) * 0.62).attr("class", "node-shape");
+    });
     const marker = legLayer.append("rect").attr("class", "spider-target").attr("width", 5).attr("height", 5).attr("opacity", 0);
 
     const body = () => ({ x: rootNode.fx, y: rootNode.fy });
     const dirAt = (a) => ({ x: Math.cos(a), y: Math.sin(a) });
 
-    function hip(leg) {
-      const b = body(), d = dirAt(state.heading + leg.angle);
-      return { x: b.x + d.x * 8, y: b.y + d.y * 8 };
-    }
-
     function restSpot(leg, lead) {
       const b = body(), d = dirAt(state.heading + leg.angle), v = dirAt(state.heading);
       return { x: b.x + d.x * REACH + v.x * lead, y: b.y + d.y * REACH + v.y * lead };
-    }
-
-    // Two-segment IK; front knees point forward, back knees backward,
-    // mirrored left and right like a spider's spread
-    function knee(leg, h, f) {
-      const dx = f.x - h.x, dy = f.y - h.y;
-      const d = Math.min(Math.hypot(dx, dy), UPPER + LOWER - 0.5) || 0.01;
-      const a = Math.acos(Math.min(1, Math.max(-1, (UPPER * UPPER + d * d - LOWER * LOWER) / (2 * UPPER * d))));
-      const base = Math.atan2(dy, dx), v = dirAt(state.heading);
-      const k1 = { x: h.x + Math.cos(base + a) * UPPER, y: h.y + Math.sin(base + a) * UPPER };
-      const k2 = { x: h.x + Math.cos(base - a) * UPPER, y: h.y + Math.sin(base - a) * UPPER };
-      const ahead = (k) => (k.x - h.x) * v.x + (k.y - h.y) * v.y;
-      return ahead(k1) > ahead(k2) === leg.front ? k1 : k2;
     }
 
     function crawlTo(x, y) {
@@ -545,13 +527,11 @@
     function draw() {
       const g = state.grow;
       legSel.attr("opacity", g > 0 ? 1 : 0).each(function (leg) {
-        const h = hip(leg), k = knee(leg, h, leg.foot);
-        const kx = h.x + (k.x - h.x) * g, ky = h.y + (k.y - h.y) * g;
-        const fx = h.x + (leg.foot.x - h.x) * g, fy = h.y + (leg.foot.y - h.y) * g;
+        const b = body();
+        const fx = b.x + (leg.foot.x - b.x) * g, fy = b.y + (leg.foot.y - b.y) * g;
         const el = d3.select(this);
-        el.select("polyline").attr("points", `${h.x},${h.y} ${kx},${ky} ${fx},${fy}`);
-        el.select(".leg-joint").attr("x", kx - 1.5).attr("y", ky - 1.5);
-        el.select(".leg-foot").attr("x", fx - 2).attr("y", fy - 2);
+        el.select("path").attr("d", `M${b.x},${b.y}L${fx},${fy}`);
+        el.select(".leg-end").attr("transform", `translate(${fx},${fy})`);
       });
       // the body square turns to face where it's going
       nodeSel
