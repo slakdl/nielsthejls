@@ -7,9 +7,9 @@
 // orange and grows, in place, into that body: the intro dissolves and the
 // web grows out from exactly where the dot was.
 //
-// The "i" is set dotless (ı) and its dot is a separate square placed exactly
-// where the font would draw it, measured from the font itself, so it can
-// become the body. A click or key press skips straight to the site.
+// The "i" is set dotless (ı) and its dot is a separate shape placed where
+// the font would draw it, so it can become the body. A click or key press
+// skips straight to the site.
 (function () {
   const html = document.documentElement;
   if (!html.classList.contains("intro")) return;
@@ -31,9 +31,6 @@
 
   // The name is pinned at the left edge of where the finished name sits, so
   // nothing written to the right of the "i" ever moves it.
-  const font = getComputedStyle(nameEl);
-  const measure = document.createElement("canvas").getContext("2d");
-  measure.font = `${font.fontWeight} ${font.fontSize} ${font.fontFamily}`;
 
   const finals = [...NAME].map((c, i) => (i === I_AT ? "ı" : c));
   nameEl.textContent = finals.join("");
@@ -50,15 +47,20 @@
   probe.style.cssText = "display:inline-block;width:0;height:0;vertical-align:baseline";
   nameEl.append(probe);
 
-  // Where the font puts the dot of an "i": the dotless i's stem gives the
-  // width and centre, the dotted i's ink top gives the height
+  // Where the font puts the dot of an "i", from what's on screen: the
+  // dotless i's own box (always laid out in the real font) and the baseline.
+  // Measuring the font on a canvas looked exact but isn't: Safari's canvas
+  // doesn't know -apple-system and measures a serif fallback instead, which
+  // made the dot nearly twice too big on iPhones. Across the site's fonts
+  // (SF, Helvetica Neue, Arial) the dot is ~54% of the i's advance, centred
+  // on it, with its top ~0.72em above the baseline.
+  const DOT_WIDTH = 0.54; // of the i's advance width
+  const DOT_TOP = 0.72; // em above the baseline
   function dotBox() {
-    const stem = measure.measureText("ı");
-    const top = probe.getBoundingClientRect().top - measure.measureText("i").actualBoundingBoxAscent;
-    const left = chars[I_AT].span.getBoundingClientRect().left;
-    const x0 = left - stem.actualBoundingBoxLeft;
-    const side = stem.actualBoundingBoxRight + stem.actualBoundingBoxLeft;
-    return { x: x0, y: top, side };
+    const i = chars[I_AT].span.getBoundingClientRect();
+    const em = parseFloat(getComputedStyle(nameEl).fontSize);
+    const side = i.width * DOT_WIDTH;
+    return { x: i.left + (i.width - side) / 2, y: probe.getBoundingClientRect().top - DOT_TOP * em, side };
   }
 
   // the dot takes the same shape classes as the index list's icons
