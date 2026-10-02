@@ -424,9 +424,11 @@
   // no more than three legs lifted, never two neighbours on one side unless
   // a leg is overstretched.
   //
-  // The bug walks deliberately: it thinks for a moment, turns to face the
-  // click, walks with the odd hesitation, and its body slows while legs are
-  // lifted, so each step seems to carry weight.
+  // The bug walks deliberately: it thinks for a moment, then sets off toward
+  // the click right away, swinging round the short way while it walks (slow
+  // while it's still turned away, picking up speed as it lines up). It
+  // hesitates now and then, and its body slows while legs are lifted, so
+  // each step seems to carry weight.
   //
   // Legs spring out on a click and keep that same spring while walking:
   // every knee and foot is a point in a small d3 force simulation, pulled
@@ -439,17 +441,20 @@
     const WALK_SPEED = 120; // px per second
     const REST_BEFORE_FOLD = 2600; // ms
     const BODY_MARGIN = 70; // keeps the body far enough in for its legs
+    const FOLD_MS = 650; // each leg's slide back into the body
     const SPRING = 0.22; // pull toward the leg's wanted position, per tick
     const DAMPING = 0.3; // velocity lost per tick: lower is springier
 
     const state = {
       moved: false,
       target: null,
-      phase: "rest", // think | turn | walk | rest
+      phase: "rest", // think | walk | rest
       phaseUntil: 0,
       heading: -Math.PI / 2, // facing up to start
+      travel: { x: 0, y: -1 }, // direction the body is actually moving
       speed: 0,
       legsOut: false,
+      folding: false,
       restingSince: 0,
       legs: [],
       now: 0,
@@ -473,6 +478,7 @@
           stepMs: 0,
           bulge: 0,
           popAt: 0,
+          foldAt: 0,
           restless: rand(26, 72), // lag it tolerates before stepping; re-rolled every step
         });
       });
@@ -496,14 +502,14 @@
 
     // Where this leg would rest right now (used to measure how far it lags)
     function restSpot(leg, lead) {
-      const b = body(), d = dirAt(state.heading + leg.angle), v = dirAt(state.heading);
+      const b = body(), d = dirAt(state.heading + leg.angle), v = state.travel;
       return { x: b.x + d.x * REACH + v.x * lead, y: b.y + d.y * REACH + v.y * lead };
     }
 
     // A foothold of the leg's own choosing: near (bent tight) or far
     // (stretched wide), a little off its usual angle, sometimes reaching ahead
     function chooseFoothold(leg, lead) {
-      const b = body(), v = dirAt(state.heading);
+      const b = body(), v = state.travel;
       const a = state.heading + leg.angle + rand(-0.22, 0.22);
       const reach = REACH * rand(0.6, 1.18);
       const ahead = lead * rand(0.5, 1.5);
@@ -530,9 +536,14 @@
       leg.footPoint = { leg, part: "foot" };
     });
     const goal = (p) => {
-      const leg = p.leg;
-      if (!state.legsOut || state.now < leg.popAt) return body();
-      return p.part === "knee" ? knee(leg) : leg.foot;
+      const leg = p.leg, b = body();
+      if (!leg.foot || (state.legsOut && state.now < leg.popAt)) return b; // never popped yet, or about to
+      const pose = p.part === "knee" ? knee(leg) : leg.foot;
+      if (state.legsOut) return pose;
+      // folding: the pose slides back into the body, easing in and out
+      const t = clamp((state.now - leg.foldAt) / FOLD_MS, 0, 1);
+      const out = 1 - t * t * (3 - 2 * t);
+      return { x: b.x + (pose.x - b.x) * out, y: b.y + (pose.y - b.y) * out };
     };
     const legSim = d3
       .forceSimulation(state.legs.flatMap((leg) => [leg.kneePoint, leg.footPoint]))
@@ -562,29 +573,45 @@
     // ms apart, overshooting a touch before it settles
     function popLegs(now) {
       const b = body();
+      // caught mid-fold: carry on from where the legs are instead of resetting
+      const midFold = state.folding;
       state.legsOut = true;
+      state.folding = false;
       legSel.interrupt();
       state.legs.forEach((leg) => {
         leg.foot = chooseFoothold(leg, 0);
         leg.to = null;
-        leg.popAt = now + rand(0, 90);
+        leg.popAt = midFold ? now : now + rand(0, 90);
+        if (midFold) return;
         [leg.kneePoint, leg.footPoint].forEach((p) => {
           p.x = b.x + rand(-3, 3);
           p.y = b.y + rand(-3, 3);
           p.vx = p.vy = 0;
         });
       });
+      if (!midFold) legSel.attr("opacity", 0);
       legSel
-        .attr("opacity", 0)
         .transition()
         .delay((leg) => leg.popAt - now)
         .duration(250)
         .attr("opacity", 1);
     }
 
-    function foldLegs() {
+    // one leg after another slides back in and fades, rather than all at once
+    function foldLegs(now) {
       state.legsOut = false;
-      legSel.interrupt().transition().duration(350).attr("opacity", 0);
+      state.folding = true;
+      state.legs.forEach((leg) => {
+        leg.to = null;
+        leg.foldAt = now + rand(0, 320);
+      });
+      legSel
+        .interrupt()
+        .transition()
+        .delay((leg) => leg.foldAt - now + FOLD_MS * 0.25)
+        .duration(FOLD_MS)
+        .ease(d3.easeCubicInOut)
+        .attr("opacity", 0);
     }
 
     // --- walking ---
@@ -617,7 +644,6 @@
       const dx = state.target.x - rootNode.fx, dy = state.target.y - rootNode.fy;
       const dist = Math.hypot(dx, dy);
       const off = wrap(Math.atan2(dy, dx) - state.heading);
-      const facing = Math.abs(off) < 0.25;
 
       if (dist < 1.5) {
         state.target = null;
@@ -629,22 +655,17 @@
         return;
       }
 
-      // think → turn → walk, with the odd hesitation on longer walks
-      const walkFor = () => rand(600, 1500);
-      if (state.phase === "think" && now > state.phaseUntil) {
-        facing ? setPhase("walk", now, walkFor()) : setPhase("turn", now, 0);
-      } else if (state.phase === "turn" && facing) {
-        setPhase("walk", now, walkFor());
-      } else if (state.phase === "walk") {
-        if (Math.abs(off) > 1.2 && dist > 40) setPhase("turn", now, 0);
-        else if (now > state.phaseUntil && dist > 100) setPhase("think", now, rand(140, 400));
-      }
+      // think → walk, with the odd hesitation on longer walks
+      if (state.phase === "think" && now > state.phaseUntil) setPhase("walk", now, rand(600, 1500));
+      else if (state.phase === "walk" && now > state.phaseUntil && dist > 100) setPhase("think", now, rand(140, 400));
 
-      const turnRate = { think: 0, turn: 3.2, walk: 2.6 }[state.phase];
+      // turn the short way round while walking; a glance toward it while thinking
+      const turnRate = state.phase === "walk" ? 4.2 : 0.8;
       state.heading += clamp(off, -turnRate * dt, turnRate * dt);
-      if (state.phase === "think" && Math.random() < dt * 2) state.heading += rand(-0.05, 0.05); // a small look around
 
-      const wanted = state.phase === "walk" ? Math.min(WALK_SPEED, dist * 2.2 + 12) : 0;
+      // slow while still turned away, full pace once lined up
+      const lined = Math.max(0.2, Math.cos(off));
+      const wanted = state.phase === "walk" ? Math.min(WALK_SPEED, dist * 2.2 + 12) * lined : 0;
       state.speed += (wanted - state.speed) * Math.min(1, dt * 7);
 
       // weight: the body drags while legs are lifted, pushes on when they plant
@@ -652,7 +673,9 @@
       const push = 1 - 0.35 * Math.min(1, lifted / 3);
 
       const step = Math.min(dist, state.speed * push * dt);
-      const dir = dist < 30 ? { x: dx / dist, y: dy / dist } : dirAt(state.heading);
+      // always moves toward the click, never off in the wrong direction
+      const dir = { x: dx / dist, y: dy / dist };
+      state.travel = dir;
       const v = viewBounds();
       rootNode.fx = clamp(rootNode.fx + dir.x * step, v.left + BODY_MARGIN, v.right - BODY_MARGIN);
       rootNode.fy = clamp(rootNode.fy + dir.y * step, v.top + BODY_MARGIN, v.bottom - BODY_MARGIN);
@@ -720,9 +743,10 @@
       state.now = now;
 
       if (state.target) moveBody(now, dt);
-      if (state.legsOut && !state.target && now - state.restingSince > REST_BEFORE_FOLD) foldLegs();
+      if (state.legsOut && !state.target && now - state.restingSince > REST_BEFORE_FOLD) foldLegs(now);
       if (state.legsOut) moveLegs(now, dt);
       const settled = stepPhysics(dt);
+      if (settled && state.folding) state.folding = false;
       draw();
 
       if (state.target || state.legsOut || !settled || state.legs.some((l) => l.to)) {
