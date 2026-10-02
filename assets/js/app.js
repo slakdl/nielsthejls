@@ -416,29 +416,31 @@
 
   // --- spider: click empty space and the web grows legs and walks there ---
   //
-  // Procedural walk: each leg has a planted foot. As the body moves, a leg
-  // whose foot falls behind its resting spot steps forward, one or two at a
-  // time and never two neighbours on one side. Each leg is two strings like
-  // the navigation ones, a random shape at the knee and another at the foot.
+  // Each leg is two strings like the navigation ones, with a random shape at
+  // the knee and another at the foot. The legs are autonomous: every leg
+  // picks its own footholds (near or far, so it bends tight or stretches
+  // wide), its own step length, step speed and how restless it is, and it
+  // fidgets while the bug stands still. A few simple rules keep it a spider:
+  // no more than three legs lifted, never two neighbours on one side unless
+  // a leg is overstretched.
+  //
   // The bug walks deliberately: it thinks for a moment, turns to face the
   // click, walks with the odd hesitation, and its body slows while legs are
-  // lifted and pushes on when they plant, so every step seems to carry weight.
+  // lifted, so each step seems to carry weight.
   //
-  // The legs pop out exactly like the Client Work strings do: their points
-  // live in a small d3 force simulation with the navigation's own settings
-  // (seeded at the body, link strength 0.9, charge -260, collide, alpha 0.9,
-  // 350ms fade). Once that burst has cooled, the same simulation just pulls
-  // each point to where the walk wants it.
+  // Legs spring out on a click and keep that same spring while walking:
+  // every knee and foot is a point in a small d3 force simulation, pulled
+  // toward where the leg wants it with slightly springy damping, so the pop
+  // and the walk are one continuous motion.
   const spider = (() => {
     const HIP_ANGLES = [34, 68, 112, 148]; // degrees from the heading, front to back
     const UPPER = 78, LOWER = 96; // leg segment lengths
-    const REACH = 128; // body to resting foot
-    const STEP_AT = 46; // how far a foot may lag before it steps
-    const STEP_MS = 140;
+    const REACH = 128; // body to a comfortable foothold
     const WALK_SPEED = 120; // px per second
     const REST_BEFORE_FOLD = 2600; // ms
     const BODY_MARGIN = 70; // keeps the body far enough in for its legs
-    const FOLLOW = 0.25; // pull toward the walk's positions once popped
+    const SPRING = 0.22; // pull toward the leg's wanted position, per tick
+    const DAMPING = 0.3; // velocity lost per tick: lower is springier
 
     const state = {
       moved: false,
@@ -448,16 +450,31 @@
       heading: -Math.PI / 2, // facing up to start
       speed: 0,
       legsOut: false,
-      popping: false,
       restingSince: 0,
       legs: [],
+      now: 0,
       lastTime: 0,
       running: false,
     };
 
+    const rand = (lo, hi) => lo + Math.random() * (hi - lo);
+
     [-1, 1].forEach((side) => {
       HIP_ANGLES.forEach((deg, i) => {
-        state.legs.push({ side, index: i, front: i < 2, angle: (side * deg * Math.PI) / 180, foot: null, from: null, to: null, t0: 0 });
+        state.legs.push({
+          side,
+          index: i,
+          front: i < 2,
+          angle: (side * deg * Math.PI) / 180,
+          foot: null,
+          from: null,
+          to: null,
+          t0: 0,
+          stepMs: 0,
+          bulge: 0,
+          popAt: 0,
+          restless: rand(26, 72), // lag it tolerates before stepping; re-rolled every step
+        });
       });
     });
 
@@ -477,9 +494,20 @@
     const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
     const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi);
 
+    // Where this leg would rest right now (used to measure how far it lags)
     function restSpot(leg, lead) {
       const b = body(), d = dirAt(state.heading + leg.angle), v = dirAt(state.heading);
-      return keepInView({ x: b.x + d.x * REACH + v.x * lead, y: b.y + d.y * REACH + v.y * lead });
+      return { x: b.x + d.x * REACH + v.x * lead, y: b.y + d.y * REACH + v.y * lead };
+    }
+
+    // A foothold of the leg's own choosing: near (bent tight) or far
+    // (stretched wide), a little off its usual angle, sometimes reaching ahead
+    function chooseFoothold(leg, lead) {
+      const b = body(), v = dirAt(state.heading);
+      const a = state.heading + leg.angle + rand(-0.22, 0.22);
+      const reach = REACH * rand(0.6, 1.18);
+      const ahead = lead * rand(0.5, 1.5);
+      return keepInView({ x: b.x + Math.cos(a) * reach + v.x * ahead, y: b.y + Math.sin(a) * reach + v.y * ahead });
     }
 
     // Two-segment IK from the body to the foot; front knees point forward,
@@ -496,62 +524,32 @@
       return keepInView(ahead(k1) > ahead(k2) === leg.front ? k1 : k2);
     }
 
-    // --- leg physics: a small force simulation ---
-    const hub = { id: "body" };
+    // --- leg physics: one continuous spring, from the pop through the walk ---
     state.legs.forEach((leg) => {
       leg.kneePoint = { leg, part: "knee" };
       leg.footPoint = { leg, part: "foot" };
     });
-    const legLinks = state.legs.flatMap((leg) => [
-      { source: hub, target: leg.kneePoint, distance: UPPER },
-      { source: leg.kneePoint, target: leg.footPoint, distance: LOWER },
-    ]);
     const goal = (p) => {
-      if (p === hub || !state.legsOut) return body();
-      return p.part === "knee" ? knee(p.leg) : p.leg.foot;
+      const leg = p.leg;
+      if (!state.legsOut || state.now < leg.popAt) return body();
+      return p.part === "knee" ? knee(leg) : leg.foot;
     };
     const legSim = d3
-      .forceSimulation([hub, ...state.legs.flatMap((leg) => [leg.kneePoint, leg.footPoint])])
+      .forceSimulation(state.legs.flatMap((leg) => [leg.kneePoint, leg.footPoint]))
       .stop()
-      .force("link", d3.forceLink(legLinks).distance((d) => d.distance))
-      .force("charge", d3.forceManyBody())
-      .force("goalX", d3.forceX((p) => goal(p).x))
-      .force("goalY", d3.forceY((p) => goal(p).y));
-
-    // the navigation's own burst: what a new Client Work string gets
-    function burstForces() {
-      state.popping = true;
-      legSim.force("link").strength(0.9);
-      legSim.force("charge").strength(-260);
-      legSim.force("collide", d3.forceCollide().radius(radius({ type: "item" }) + 26));
-      legSim.force("goalX").strength(0.08);
-      legSim.force("goalY").strength(0.08);
-      legSim.alphaDecay(1 - Math.pow(0.001, 1 / 300)).alpha(0.9);
-    }
-
-    // after the burst: just follow the walk
-    function followForces() {
-      state.popping = false;
-      legSim.force("link").strength(0);
-      legSim.force("charge").strength(0);
-      legSim.force("collide", null);
-      legSim.force("goalX").strength(FOLLOW);
-      legSim.force("goalY").strength(FOLLOW);
-      legSim.alphaDecay(0).alpha(1);
-    }
-    followForces();
+      .velocityDecay(DAMPING)
+      .alphaDecay(0)
+      .alpha(1)
+      .force("goalX", d3.forceX((p) => goal(p).x).strength(SPRING))
+      .force("goalY", d3.forceY((p) => goal(p).y).strength(SPRING));
 
     function stepPhysics(dt) {
-      const b = body();
-      hub.fx = b.x;
-      hub.fy = b.y;
       // forceX/forceY cache their targets, so re-read them every tick
       for (let i = Math.max(1, Math.min(3, Math.round(dt * 60))); i > 0; i--) {
         legSim.force("goalX").x(legSim.force("goalX").x());
         legSim.force("goalY").y(legSim.force("goalY").y());
         legSim.tick();
       }
-      if (state.popping && legSim.alpha() < 0.25) followForces();
       return state.legs.every((leg) =>
         [leg.kneePoint, leg.footPoint].every((p) => {
           const g = goal(p);
@@ -560,26 +558,32 @@
       );
     }
 
-    // Like a new project node: start at the body, nudged a few px at random
-    function popLegs() {
+    // Each leg shoots out from the body toward its first foothold, a few
+    // ms apart, overshooting a touch before it settles
+    function popLegs(now) {
       const b = body();
       state.legsOut = true;
+      legSel.interrupt();
       state.legs.forEach((leg) => {
-        leg.foot = restSpot(leg, 0);
+        leg.foot = chooseFoothold(leg, 0);
         leg.to = null;
+        leg.popAt = now + rand(0, 90);
         [leg.kneePoint, leg.footPoint].forEach((p) => {
-          p.x = b.x + (Math.random() - 0.5) * 6;
-          p.y = b.y + (Math.random() - 0.5) * 6;
+          p.x = b.x + rand(-3, 3);
+          p.y = b.y + rand(-3, 3);
           p.vx = p.vy = 0;
         });
       });
-      burstForces();
-      legSel.interrupt().attr("opacity", 0).transition().duration(350).attr("opacity", 1);
+      legSel
+        .attr("opacity", 0)
+        .transition()
+        .delay((leg) => leg.popAt - now)
+        .duration(250)
+        .attr("opacity", 1);
     }
 
     function foldLegs() {
       state.legsOut = false;
-      followForces();
       legSel.interrupt().transition().duration(350).attr("opacity", 0);
     }
 
@@ -592,14 +596,15 @@
     function crawlTo(x, y) {
       const v = viewBounds();
       const now = performance.now();
+      state.now = now;
       state.target = {
         x: clamp(x, v.left + BODY_MARGIN, v.right - BODY_MARGIN),
         y: clamp(y, v.top + BODY_MARGIN, v.bottom - BODY_MARGIN),
       };
       state.moved = true;
-      if (!state.legsOut) popLegs();
+      if (!state.legsOut) popLegs(now);
       marker.interrupt().attr("x", state.target.x - 2.5).attr("y", state.target.y - 2.5).attr("opacity", 1);
-      setPhase("think", now, 220 + Math.random() * 260); // considers it before moving
+      setPhase("think", now, rand(220, 480)); // considers it before moving
       simulation.alphaTarget(0.2).restart();
       if (!state.running) {
         state.running = true;
@@ -625,26 +630,26 @@
       }
 
       // think → turn → walk, with the odd hesitation on longer walks
-      const walkFor = () => 600 + Math.random() * 900;
+      const walkFor = () => rand(600, 1500);
       if (state.phase === "think" && now > state.phaseUntil) {
         facing ? setPhase("walk", now, walkFor()) : setPhase("turn", now, 0);
       } else if (state.phase === "turn" && facing) {
         setPhase("walk", now, walkFor());
       } else if (state.phase === "walk") {
         if (Math.abs(off) > 1.2 && dist > 40) setPhase("turn", now, 0);
-        else if (now > state.phaseUntil && dist > 100) setPhase("think", now, 140 + Math.random() * 260);
+        else if (now > state.phaseUntil && dist > 100) setPhase("think", now, rand(140, 400));
       }
 
       const turnRate = { think: 0, turn: 3.2, walk: 2.6 }[state.phase];
       state.heading += clamp(off, -turnRate * dt, turnRate * dt);
-      if (state.phase === "think" && Math.random() < dt * 2) state.heading += (Math.random() - 0.5) * 0.1; // a small look around
+      if (state.phase === "think" && Math.random() < dt * 2) state.heading += rand(-0.05, 0.05); // a small look around
 
       const wanted = state.phase === "walk" ? Math.min(WALK_SPEED, dist * 2.2 + 12) : 0;
       state.speed += (wanted - state.speed) * Math.min(1, dt * 7);
 
       // weight: the body drags while legs are lifted, pushes on when they plant
       const lifted = state.legs.filter((l) => l.to).length;
-      const push = 1 - 0.4 * Math.min(1, lifted / 2);
+      const push = 1 - 0.35 * Math.min(1, lifted / 3);
 
       const step = Math.min(dist, state.speed * push * dt);
       const dir = dist < 30 ? { x: dx / dist, y: dy / dist } : dirAt(state.heading);
@@ -657,33 +662,54 @@
       simulation.force("y").y(simulation.force("y").y());
     }
 
-    // Wave gait: at most two legs up, never two neighbours on one side
-    function moveLegs(now) {
+    function startStep(leg, to, now) {
+      leg.from = leg.foot;
+      leg.to = to;
+      leg.t0 = now;
+      leg.stepMs = rand(110, 230);
+      // the foot swings out on a slight arc, not a straight slide
+      leg.bulge = Math.min(14, Math.hypot(to.x - leg.from.x, to.y - leg.from.y) * rand(0.08, 0.2)) * leg.side;
+      leg.restless = rand(26, 72);
+    }
+
+    // Every leg decides for itself when to step and where to; the shared
+    // rules only stop too many legs (or two neighbours) lifting at once
+    function moveLegs(now, dt) {
       const lead = state.speed * 0.25;
       const stepping = state.legs.filter((l) => l.to);
+      const standing = !state.target || state.phase === "think";
+      const b = body();
 
       state.legs.forEach((leg) => {
         if (!leg.to) return;
-        const t = Math.min(1, (now - leg.t0) / STEP_MS);
+        const t = Math.min(1, (now - leg.t0) / leg.stepMs);
         const e = t * t * (3 - 2 * t); // lift slowly, plant softly
-        leg.foot = { x: leg.from.x + (leg.to.x - leg.from.x) * e, y: leg.from.y + (leg.to.y - leg.from.y) * e };
-        if (t === 1) leg.to = null;
+        const dx = leg.to.x - leg.from.x, dy = leg.to.y - leg.from.y;
+        const len = Math.hypot(dx, dy) || 1;
+        const arc = Math.sin(Math.PI * t) * leg.bulge;
+        leg.foot = { x: leg.from.x + dx * e - (dy / len) * arc, y: leg.from.y + dy * e + (dx / len) * arc };
+        if (t === 1) {
+          leg.foot = leg.to;
+          leg.to = null;
+        }
       });
 
       state.legs
         .filter((l) => !l.to)
         .map((leg) => {
-          const spot = restSpot(leg, lead);
-          return { leg, spot, lag: Math.hypot(spot.x - leg.foot.x, spot.y - leg.foot.y) };
+          const rest = restSpot(leg, lead);
+          const reach = Math.hypot(leg.foot.x - b.x, leg.foot.y - b.y);
+          const lag = Math.hypot(rest.x - leg.foot.x, rest.y - leg.foot.y);
+          const strained = reach > UPPER + LOWER - 6 || reach < REACH * 0.45;
+          const fidget = standing && Math.random() < dt * 0.35; // shifts its weight now and then
+          return { leg, lag, strained, wants: strained || lag > leg.restless || fidget };
         })
-        .filter((c) => c.lag > STEP_AT)
+        .filter((c) => c.wants)
         .sort((a, b) => b.lag - a.lag)
-        .forEach(({ leg, spot, lag }) => {
+        .forEach(({ leg, strained }) => {
           const neighbour = stepping.some((l) => l.side === leg.side && Math.abs(l.index - leg.index) === 1);
-          if ((stepping.length >= 2 || neighbour) && lag < STEP_AT * 2.2) return;
-          leg.from = leg.foot;
-          leg.to = spot;
-          leg.t0 = now;
+          if ((stepping.length >= 3 || neighbour) && !strained) return;
+          startStep(leg, chooseFoothold(leg, lead), now);
           stepping.push(leg);
         });
     }
@@ -691,10 +717,11 @@
     function frame(now) {
       const dt = Math.min(0.05, (now - state.lastTime) / 1000);
       state.lastTime = now;
+      state.now = now;
 
       if (state.target) moveBody(now, dt);
       if (state.legsOut && !state.target && now - state.restingSince > REST_BEFORE_FOLD) foldLegs();
-      if (state.legsOut) moveLegs(now);
+      if (state.legsOut) moveLegs(now, dt);
       const settled = stepPhysics(dt);
       draw();
 
