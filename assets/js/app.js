@@ -87,16 +87,14 @@
       id: "client-work",
       label: "313236 5733",
       description: "06420691 355490 99037383.",
-      items: [1, 2, 3, 4, 5].map((n) => ({
-        id: `client-${n}`,
-        kind: "project",
-        label: "00000 000000",
-        subtitle: "000000 0000",
-        meta: "000000 · 0000",
-        tags: "0000 · 0000000 · 00000 · 000000000",
-        body: "0000000 00 0000 0000000 000 00000000 000 0000000 00 000000.\n\n00 00000 00000 000000 0000000 0000 0000 000 0000000 00000.",
-        related: [`client-${(n % 5) + 1}`, `client-${((n + 1) % 5) + 1}`],
-      })),
+      items: [
+        {
+          id: "sites-i-made",
+          kind: "page",
+          label: "sites i made",
+          links: ["ihatebugs.nielsthejls.com", "camera.nielsthejls.com", "kristinesokolowski.com"],
+        },
+      ],
     },
     {
       id: "archive-work",
@@ -1106,21 +1104,30 @@
     if (item.subtitle) view.append("div").attr("class", "project-subtitle").text(item.subtitle);
     if (item.meta) view.append("div").attr("class", "project-meta").text(item.meta);
 
-    const body = view.append("div").attr("class", "project-body");
-    (item.body || "More detail coming soon for this item.")
-      .split("\n\n")
-      .forEach((para) => body.append("p").text(para));
+    // Links live only here in the panel, never as strings in the graph
+    if (item.links) {
+      view.append("ul").attr("class", "resume-list").selectAll("li").data(item.links).join("li")
+        .append("a").attr("class", "resume-org").attr("href", (d) => `https://${d}`)
+        .attr("target", "_blank").attr("rel", "noopener noreferrer").text((d) => d);
+    } else {
+      const body = view.append("div").attr("class", "project-body");
+      (item.body || "More detail coming soon for this item.")
+        .split("\n\n")
+        .forEach((para) => body.append("p").text(para));
+    }
 
     // Details: tags + collaborators (moved out of the always-visible bio
     // text and into this collapsible row)
-    const detailsRow = view.append("div").attr("class", "detail-row");
-    const detailsHead = detailsRow.append("div").attr("class", "detail-row-head");
-    detailsHead.append("span").text(UI.details);
-    detailsHead.append("span").attr("class", "detail-toggle").text("+");
-    detailsHead.on("click", () => detailsRow.classed("open", !detailsRow.classed("open")));
-    const detailsBody = detailsRow.append("div").attr("class", "detail-row-body");
-    detailsBody.append("p").attr("class", "detail-tags").text(item.tags || [folder.label, item.subtitle, item.meta].filter(Boolean).join(" · "));
-    if (item.credit) detailsBody.append("p").attr("class", "detail-credit").html(`${UI.madeWith}: <strong>${item.credit}</strong>`);
+    if (item.tags || item.subtitle || item.meta || item.credit) {
+      const detailsRow = view.append("div").attr("class", "detail-row");
+      const detailsHead = detailsRow.append("div").attr("class", "detail-row-head");
+      detailsHead.append("span").text(UI.details);
+      detailsHead.append("span").attr("class", "detail-toggle").text("+");
+      detailsHead.on("click", () => detailsRow.classed("open", !detailsRow.classed("open")));
+      const detailsBody = detailsRow.append("div").attr("class", "detail-row-body");
+      detailsBody.append("p").attr("class", "detail-tags").text(item.tags || [folder.label, item.subtitle, item.meta].filter(Boolean).join(" · "));
+      if (item.credit) detailsBody.append("p").attr("class", "detail-credit").html(`${UI.madeWith}: <strong>${item.credit}</strong>`);
+    }
 
     // Connections: links to related projects, navigating within the app
     const related = (item.related || []).map((id) => folder.items.find((it) => it.id === id)).filter(Boolean);
