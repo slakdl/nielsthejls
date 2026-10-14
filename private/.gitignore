@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.astro/
+.DS_Store
+# trial fonts: for local testing only, never published
+public/fonts/trial/

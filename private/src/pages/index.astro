@@ -1,0 +1,259 @@
+---
+import "@fontsource/ibm-plex-mono/500.css";
+import { getCollection } from "astro:content";
+import { getImage, Image } from "astro:assets";
+import portrait from "../assets/portrait.jpg";
+
+// Projects live in src/content/projects. The rest of the site's copy is here.
+const CONTACT = "niels.thejls@gmail.com";
+// the contact sheet that slides up from the footer
+const SOCIALS = [
+  { label: "LinkedIn", href: "https://www.linkedin.com/in/niels-thejls-30a0a0207/", text: "Niels Thejls" },
+  { label: "Instagram", href: "https://www.instagram.com/niels.thejls/", text: "@niels.thejls" },
+];
+const FILLERS = 24; // grey squares that pad out the line until there's more work
+const SITES = ["lookagainhotspots.com", "koben.studio", "ihatebugs.nielsthejls.com", "camera.nielsthejls.com", "kristinesokolowski.com"];
+const CV = {
+  Experience: [
+    ["Spring/Summer", "Junior Designer", "2026 –"],
+    ["Re-Public", "Internship", "2026"],
+    ["Stupid Studio", "Freelance", "2025 –"],
+    ["Stupid Studio", "Internship", "2024–25"],
+    ["Dwarf", "Internship", "2022"],
+  ],
+  Education: [
+    ["Toronto Metropolitan University", "Scholarship, Digital Publishing", "2025"],
+    ["Danmarks Medie- og Journalisthøjskole", "BA, Interactive Design", "2022–25"],
+    ["Københavns Erhvervsakademi", "AP, Entrepreneurship & Design", "2020–22"],
+    ["Fontys Academy for Creative Industries", "Minor, Transmedia Design", "2021"],
+  ],
+  Recognition: [
+    ['<a href="https://www.dandad.org/work/new-blood-archive/the-green-hand" target="_blank" rel="noopener">The Green Hand ↗</a>', "Graphite Pencil, D&AD New Blood", ""],
+  ],
+};
+
+// Each image is built twice: a small one for the line, and a full one the
+// script swaps in only when that image comes into focus.
+async function sizes(src: ImageMetadata) {
+  const [thumb, full] = await Promise.all([
+    getImage({ src, width: Math.min(540, src.width), format: "webp", quality: 78 }),
+    getImage({ src, width: Math.min(1400, src.width), format: "webp", quality: 82 }),
+  ]);
+  return { thumb: thumb.src, full: full.src, w: src.width, h: src.height };
+}
+const projects = (await getCollection("projects")).sort((a, b) => a.id.localeCompare(b.id));
+// a video entry is its poster frame's sizes plus the video's address; a live piece only needs its shape
+const LIVE_ASPECT = { spider: [16, 10] }; // the spider's page is 1440×900
+const media = async (m: ImageMetadata | { video: string; poster: ImageMetadata } | { live: "spider" }) =>
+  "live" in m ? { live: m.live, w: LIVE_ASPECT[m.live][0], h: LIVE_ASPECT[m.live][1] }
+  : "video" in m ? { ...(await sizes(m.poster)), video: m.video } : sizes(m);
+const WORK = await Promise.all(
+  projects.map(async ({ data }) => ({
+    title: data.title,
+    note: data.note,
+    year: data.year,
+    role: data.role,
+    description: data.description,
+    link: data.link,
+    ...(await sizes(data.cover)),
+    live: data.coverLive,
+    images: [
+      ...(await Promise.all(data.images.map(media))),
+      ...Array.from({ length: data.placeholders }, () => ({ w: 4, h: 5 })),
+    ],
+  })),
+);
+const data = JSON.stringify({ WORK, FILLERS, SITES, CV, CONTACT }).replace(/</g, "\\u003c");
+---
+
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Niels Thejls</title>
+<meta name="description" content="Niels Thejls — designer. Work, index and bio.">
+<!-- mirrored N in ABC Walter Neue Mono Extrabold; drawn from the trial font, so it sits with it (gitignored) -->
+<link rel="icon" href="/fonts/trial/favicon.svg" type="image/svg+xml">
+<link rel="preload" as="image" href={WORK[0]?.thumb} fetchpriority="high">
+<script is:inline>try { if (localStorage.theme === "light") document.documentElement.dataset.theme = "light"; } catch (e) {}</script>
+</head>
+<body>
+
+
+<header class="bar">
+  <nav><a href="#work">Work</a><a href="#bio">Bio</a><a href="#index">Index</a></nav>
+  <span id="count">(01)</span>
+  <span class="tools"><button id="theme">(Light)</button><button id="gridbtn" aria-pressed="false">(Grid)</button></span>
+  <span class="name" id="name" hidden>Niels Thejls</span> <!-- Bio page only -->
+  <!-- the portrait sits under the name, on the Bio page only -->
+  <figure class="portrait" id="portrait" hidden>
+    <Image src={portrait} alt="Niels Thejls" widths={[120, 240, 360]} sizes="108px" format="webp" quality={82} />
+    <canvas aria-hidden="true"></canvas>
+  </figure>
+</header>
+
+<main>
+  <section class="work" id="work" aria-label="Work"></section>
+
+  <section class="page" id="index" hidden aria-label="Index">
+    <ul class="rows" id="rows"></ul>
+  </section>
+
+  <section class="page" id="bio" hidden aria-label="Bio">
+    <div class="bio-head">
+      <p>Computational expressionist and<br>designer working across identity,<br>interaction and print.</p>
+      <p>Currently Junior Designer at Spring/Summer.</p>
+    </div>
+    <ul class="rows" id="cv"></ul>
+  </section>
+</main>
+
+<div class="cap" id="cap" aria-live="polite"></div>
+<div class="cap desc" id="desc"></div>
+<footer class="bar foot"><span class="note" id="note"></span><a class="contact" id="contact" href={`mailto:${CONTACT}`} aria-controls="sheet" aria-expanded="false">Contact</a></footer>
+<aside class="sheet" id="sheet" role="dialog" aria-label="Contact" inert>
+  <span class="title">Contact</span>
+  <a class="ct" href={`mailto:${CONTACT}`}><span class="k">Mail</span><span class="v">{CONTACT}</span></a>
+  {SOCIALS.map((s) => (
+    <a class="ct" href={s.href} target="_blank" rel="noopener"><span class="k">{s.label}</span><span class="v">{s.text} ↗</span></a>
+  ))}
+  <button class="close" id="sheet-close">(Close)</button>
+</aside>
+<div class="grid" id="grid" hidden aria-hidden="true"></div>
+<canvas id="ascii" aria-hidden="true"></canvas>
+
+<script is:inline type="application/json" id="data" set:html={data}></script>
+<script>import "../scripts/site.js";</script>
+</body>
+</html>
+
+<style is:global>
+  /* ABC Walter Neue Mono (Dinamo) — trial file, local only: public/fonts/trial is gitignored.
+     Without it (e.g. on a fresh clone) the site falls back to IBM Plex Mono. */
+  @font-face {
+    font-family: "ABC Walter Neue Mono";
+    src: url("/fonts/trial/ABCWalterNeueMonoTrial-Medium.otf") format("opentype");
+    font-weight: 500;
+    font-display: swap;
+  }
+  :root {
+    --paper: #1b1b1a;
+    --ink: #eceae4;
+    --mute: #7d7c77;
+    --guide: rgba(229, 83, 45, .6);
+    --pad: 12px;
+    --gap: 10px;
+  }
+  :root[data-theme="light"] { --paper: #f4f3ee; --ink: #161616; --mute: #8a8984; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font: 500 10px/1.25 "ABC Walter Neue Mono", "IBM Plex Mono", ui-monospace, monospace;
+    text-transform: uppercase;
+    letter-spacing: .02em;
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+    transition: background-color .4s, color .4s;
+  }
+  a, button { color: inherit; font: inherit; text-transform: inherit; letter-spacing: inherit; background: none; border: 0; cursor: pointer; text-decoration: none; }
+  a:hover, button:hover, a[aria-current="page"], button[aria-pressed="true"] { color: var(--mute); }
+  :focus-visible { outline: 1px solid var(--ink); outline-offset: 2px; }
+
+  /* four equal columns; everything starts on a column line */
+  .bar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 2;
+    display: grid; grid-template-columns: repeat(4, 1fr); column-gap: var(--gap); align-items: start;
+    padding: var(--pad);
+  }
+  .bar nav, .bar .tools { display: flex; gap: 2.2em; }
+  .bar.foot { top: auto; bottom: 0; align-items: end; }
+  .foot .note { grid-column: 2; display: flex; gap: 2.2em; color: var(--mute); }
+  .foot .contact { grid-column: 4; justify-self: end; }
+  @media (hover: none) { .foot .note { visibility: hidden; } } /* no keyboard on touch */
+
+  /* contact sheet: inverted colours, same four columns, slides up over the footer */
+  .sheet {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 4;
+    display: grid; grid-template-columns: repeat(4, 1fr); column-gap: var(--gap); align-items: start; align-content: start;
+    padding: var(--pad); background: var(--ink); color: var(--paper);
+    transform: translateY(101%); transition: transform .55s cubic-bezier(.2, .8, .2, 1), background-color .4s, color .4s;
+  }
+  .sheet.open { transform: none; }
+  .sheet .title { opacity: .55; }
+  .sheet .close { position: absolute; right: var(--pad); bottom: var(--pad); } /* exactly where Contact sits */
+  .sheet .ct .k { display: block; opacity: .55; margin-bottom: 2.4em; }
+  .sheet .ct .v { display: block; }
+
+  /* grid overlay, toggled with (Grid) or G */
+  .grid { position: fixed; inset: 0; z-index: 3; pointer-events: none; color: #e5532d; }
+  .grid[hidden] { display: none; }
+  .grid .cols { position: absolute; inset: 0 var(--pad); display: grid; column-gap: var(--gap); }
+  .grid i { font-style: normal; background: rgba(229, 83, 45, .12); padding: 0 4px 44px; display: flex; align-items: flex-end; }
+  .grid b { position: absolute; left: 0; right: 0; height: 0; border-top: 1px dashed var(--guide); font-weight: inherit; }
+  .grid b span { position: absolute; right: var(--pad); bottom: 3px; }
+  .grid .legend { position: absolute; left: var(--pad); bottom: 30px; }
+
+  main { height: 100%; }
+  section[hidden] { display: none !important; }
+
+  /* work: items are absolutely placed by the physics loop, transforms only */
+  .work { position: relative; height: 100%; overflow: hidden; touch-action: none; cursor: grab; user-select: none; transition: opacity .3s; }
+  .work.drag { cursor: grabbing; }
+  .item { position: absolute; left: 0; top: 0; height: var(--HB); transform-origin: 0 0; will-change: transform;
+    background: color-mix(in srgb, var(--ink) 13%, var(--paper)); transition: background-color .4s; }
+  .item.rel { z-index: 1; }
+  /* empty slots are the mirrored N (the favicon), drawn as a shape in the site's own grey so it
+     follows the theme toggle. Trial-font asset, local only: without it the slot is simply empty. */
+  .item.ph { background: var(--mute);
+    -webkit-mask: url("/fonts/trial/favicon.svg") center / contain no-repeat; mask: url("/fonts/trial/favicon.svg") center / contain no-repeat; }
+  .item img { display: block; height: 100%; width: auto; -webkit-user-drag: none; pointer-events: none; }
+  .cap { position: fixed; z-index: 1; width: 26ch; pointer-events: none; transform: translateY(-100%); }
+  .cap b { display: block; font-weight: inherit; margin-bottom: 2.4em; }
+  .flip { display: inline-block; transform: scaleX(-1); }
+  /* an open project's description and role, on column 3 beside the caption */
+  .cap.desc { width: 34ch; transform: none; } /* hangs down from the caption's title line, not up from its base */
+  .cap.desc i { display: block; font-style: normal; margin-top: 1.25em; opacity: .55; }
+  .cap.desc a { display: inline-block; margin-top: 1.25em; pointer-events: auto; }
+  .cap.desc > :first-child { margin-top: 0; } /* a link or role on its own starts on the title line */
+  .item video { display: block; height: 100%; width: auto; pointer-events: none; }
+  .item canvas { display: block; width: 100%; height: 100%; pointer-events: none; }
+  .item.media { background: none; } /* grey is for placeholders; a transparent thumbnail floats on the page */
+  .cap .more { display: block; margin-top: 1.25em; pointer-events: auto; } /* the caption itself lets clicks through */
+
+  /* index + bio: rows sit on columns 2–4 */
+  /* text pages scroll between the top bar and the footer, so nothing slides under the menu */
+  .page { height: calc(100% - 80px); position: relative; top: 40px; overflow-y: auto; padding: calc(18vh - 40px) var(--pad) 10vh; }
+  .rows, .bio-head { margin-left: calc((100% - 3 * var(--gap)) / 4 + var(--gap)); list-style: none; }
+  .rows li { display: grid; grid-template-columns: repeat(3, 1fr); column-gap: var(--gap); padding: .7em 0; border-top: 1px solid color-mix(in srgb, var(--ink) 14%, transparent); }
+  .rows li:last-child { border-bottom: 1px solid color-mix(in srgb, var(--ink) 14%, transparent); }
+  .rows li > :first-child i { font-style: normal; display: inline-block; width: 6ch; }
+  .rows h2 { font: inherit; color: var(--mute); padding: 3.5em 0 1em; }
+  .rows h2:first-child { padding-top: 0; }
+  .bio-head { margin-bottom: 4em; }
+  .bio-head p { max-width: 46ch; } /* letter-spacing makes a character ~3% wider than 1ch */
+  .bio-head p + p { margin-top: 1.25em; } /* one empty line between them */
+  /* portrait under the name in the top bar, about a line thumbnail wide */
+  .bar .portrait { grid-column: 4; grid-row: 2; width: 108px; margin: 2.4em 0 0; }
+  .bar .portrait { position: relative; }
+  .bar .portrait img { width: 100%; height: auto; display: block; }
+  /* the scroll-away dust; reaches 16px above the photo so digits can drift, but stop short of the name */
+  .bar .portrait canvas { position: absolute; left: 0; right: 0; bottom: 0; top: -16px; width: 100%; height: calc(100% + 16px); pointer-events: none; }
+  /* one full-screen canvas draws every letters → image reveal */
+  #ascii { position: fixed; inset: 0; width: 100%; height: 100%; z-index: 5; pointer-events: none; }
+
+  @media (max-width: 640px) {
+    .bar { grid-template-columns: 1fr 1fr; }
+    .bar .name { display: none; }
+    .bar .portrait { grid-column: 2; }
+    .bar .tools { grid-column: 2; }
+    .sheet { grid-template-columns: 1fr 1fr; row-gap: 2.5em; }
+    .sheet .title { grid-column: 1 / -1; }
+    .rows, .bio-head { margin-left: 0; }
+    .rows li { grid-template-columns: 1fr 5ch; }
+    .rows li > :nth-child(2) { display: none; }
+    .rows li > :last-child { text-align: right; }
+  }
+</style>
