@@ -249,9 +249,11 @@ if (WORK.some((p) => p.live === "globe")) loadGlobe();
 
 // an open project's description and role: written in as the project opens, scrambled out as it closes
 function showDesc(p) {
-  const link = p?.link ? `<a href="${esc(p.link)}" target="_blank" rel="noopener">${esc(new URL(p.link).host)} ↗</a>` : ""; // the address stays readable: no mirror
+  // each link as its address, readable (no mirror): host without www, plus the path if it has one
+  const label = (u) => { const x = new URL(u); return x.host.replace(/^www\./, "") + x.pathname.replace(/\/(en\/?)?$/, ""); };
+  const link = p?.links?.length ? `<span class="links">${p.links.map((u) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(label(u))} ↗</a>`).join("<br>")}</span>` : "";
   // any of description, role and link: a project can have just a link
-  $("desc").innerHTML = (p?.description ? `<span>${esc(p.description)}</span>` : "") + (p?.role?.length ? `<i>${p.role.map(esc).join("<br>")}</i>` : "") /* one tag per line */ + link;
+  $("desc").innerHTML = (p?.description ? `<span>${esc(p.description)}</span>` : "") + (p?.studio ? `<i>Made at ${esc(p.studio)}</i>` : "") + (p?.role?.length ? `<i>${p.role.map(esc).join("<br>")}</i>` : "") /* one tag per line */ + link;
   if ($("desc").textContent) scramble("desc", false);
 }
 
