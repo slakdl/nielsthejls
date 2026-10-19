@@ -42,23 +42,32 @@ async function sizes(src: ImageMetadata) {
   return { thumb: thumb.src, full: full.src, w: src.width, h: src.height };
 }
 const projects = (await getCollection("projects")).sort((a, b) => a.id.localeCompare(b.id));
+// videos live in their project's folder too: Vite gives each one an address (fingerprinted in the
+// build, so a replaced video is never served stale)
+const VIDEO_FILES = import.meta.glob("../content/projects/*/*.{mp4,webm,mov}", { eager: true, query: "?url", import: "default" });
+function videoUrl(folder: string, v: string) {
+  const url = VIDEO_FILES[`../content/projects/${folder}/${v.replace(/^\.\//, "")}`];
+  if (!url) throw new Error(`video not found: ${folder}/${v}`);
+  return url as string;
+}
 // a video entry is its poster frame's sizes plus the video's address; a live piece only needs its shape
 const LIVE_ASPECT = { spider: [16, 10] }; // the spider's page is 1440×900
-const media = async (m: ImageMetadata | { video: string; poster: ImageMetadata } | { live: "spider" }) =>
+const media = (folder: string) => async (m: ImageMetadata | { video: string; poster: ImageMetadata } | { live: "spider" }) =>
   "live" in m ? { live: m.live, w: LIVE_ASPECT[m.live][0], h: LIVE_ASPECT[m.live][1] }
-  : "video" in m ? { ...(await sizes(m.poster)), video: m.video } : sizes(m);
+  : "video" in m ? { ...(await sizes(m.poster)), video: videoUrl(folder, m.video) } : sizes(m);
 const WORK = await Promise.all(
-  projects.map(async ({ data }) => ({
+  projects.map(async ({ data, filePath }) => ({
     title: data.title,
     note: data.note,
     year: data.year,
     role: data.role,
     description: data.description,
-    link: data.link,
+    studio: data.studio,
+    links: [data.link ?? []].flat(),
     ...(await sizes(data.cover)),
     live: data.coverLive,
     images: [
-      ...(await Promise.all(data.images.map(media))),
+      ...(await Promise.all(data.images.map(media(filePath!.split("/").at(-2)!)))),
       ...Array.from({ length: data.placeholders }, () => ({ w: 4, h: 5 })),
     ],
   })),
@@ -137,6 +146,13 @@ const data = JSON.stringify({ WORK, FILLERS, SITES, CV, CONTACT }).replace(/</g,
     font-weight: 500;
     font-display: swap;
   }
+  /* Source Serif 4 Medium, latin subset, self-hosted. SIL Open Font License (OFL.txt beside it): free to publish */
+  @font-face {
+    font-family: "Source Serif 4";
+    src: url("/fonts/source-serif-4/SourceSerif4-Medium-latin.woff2") format("woff2");
+    font-weight: 500;
+    font-display: swap;
+  }
   :root {
     --paper: #1b1b1a;
     --ink: #eceae4;
@@ -151,7 +167,12 @@ const data = JSON.stringify({ WORK, FILLERS, SITES, CV, CONTACT }).replace(/</g,
   body {
     background: var(--paper);
     color: var(--ink);
-    font: 500 10px/1.25 "ABC Walter Neue Mono", "IBM Plex Mono", ui-monospace, monospace;
+    /* trial: serif. Earlier:
+       mono     font: 500 10px/1.25 "ABC Walter Neue Mono", "IBM Plex Mono", ui-monospace, monospace;
+       grotesk  font: 500 10px/1.25 "Helvetica Neue", Helvetica, Arial, sans-serif;
+       times    font: 500 10px/1.25 "Times New Roman", Times, serif; */
+    font: 500 10px/1.25 "Source Serif 4", Georgia, serif;
+    font-variant-numeric: lining-nums tabular-nums; /* digits sit on the line and keep one width, so the number scramble stays steady */
     text-transform: uppercase;
     letter-spacing: .02em;
     overflow: hidden;
@@ -210,13 +231,16 @@ const data = JSON.stringify({ WORK, FILLERS, SITES, CV, CONTACT }).replace(/</g,
   .item.ph { background: var(--mute);
     -webkit-mask: url("/fonts/trial/favicon.svg") center / contain no-repeat; mask: url("/fonts/trial/favicon.svg") center / contain no-repeat; }
   .item img { display: block; height: 100%; width: auto; -webkit-user-drag: none; pointer-events: none; }
-  .cap { position: fixed; z-index: 1; width: 26ch; pointer-events: none; transform: translateY(-100%); }
+  /* fixed height, so the number sits in the same place whatever the title's length: number + gap +
+     3 title lines + (Read more). A 4-line title would run into the 16px above the image. */
+  .cap { position: fixed; z-index: 1; width: 26ch; height: 9.9em; pointer-events: none; transform: translateY(-100%); }
   .cap b { display: block; font-weight: inherit; margin-bottom: 2.4em; }
   .flip { display: inline-block; transform: scaleX(-1); }
   /* an open project's description and role, on column 3 beside the caption */
-  .cap.desc { width: 34ch; transform: none; } /* hangs down from the caption's title line, not up from its base */
+  .cap.desc { width: 34ch; height: auto; transform: none; } /* hangs down from the caption's title line, not up from its base */
   .cap.desc i { display: block; font-style: normal; margin-top: 1.25em; opacity: .55; }
-  .cap.desc a { display: inline-block; margin-top: 1.25em; pointer-events: auto; }
+  .cap.desc .links { display: block; margin-top: 1.25em; } /* one link per line */
+  .cap.desc a { pointer-events: auto; white-space: nowrap; } /* an address never breaks, even past the column */
   .cap.desc > :first-child { margin-top: 0; } /* a link or role on its own starts on the title line */
   .item video { display: block; height: 100%; width: auto; pointer-events: none; }
   .item canvas { display: block; width: 100%; height: 100%; pointer-events: none; }

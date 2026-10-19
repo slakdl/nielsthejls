@@ -3,7 +3,7 @@
 // thumbnail is transparent, sharp at any size, and ~80KB instead of a video.
 // The dots were exported from that renderer: per dot an int16 x, y, z unit vector and a uint8
 // hotspot weight (7 bytes). The per-dot scatter jitter was random there too, so it is re-made here.
-const DOTS_URL = "/media/biodiversity-hotspots/globe-dots.bin";
+import DOTS_URL from "../content/projects/01-Biodiversity hotspots/globe-dots.bin?url"; // kept with its project
 const LOOK = {
   land: "rgba(10, 48, 27, 0.6)", hotspot: "#51ff99", sphere: "rgb(238, 235, 227)",
   landAlpha: 0.5, limbSize: 0.25, limbInset: 0.5, dotSize: 0.6, hotspotScatter: 0.0892,
