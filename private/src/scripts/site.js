@@ -132,9 +132,10 @@ function measure() {
   HB = Math.round(innerHeight * (small ? 0.5 : 0.56)); // the focused image of an open project
   h = Math.round(innerHeight * (small ? 0.14 : 0.15));
   document.documentElement.style.setProperty("--HB", HB + "px");
-  colX = $("count").getBoundingClientRect().left; // focused image starts on the counter's column
+  // focused image starts on the counter's column; a phone's second column is mid-screen, so there it starts on the first
+  colX = small ? colLeft(0) : $("count").getBoundingClientRect().left;
   col4X = colLeft(3);
-  maxFocusW = innerWidth < 640 ? Infinity : col4X - GAP - colX; // phones have no column 4
+  maxFocusW = small ? innerWidth - 2 * colX : col4X - GAP - colX; // phones have no column 4: the screen's width
   shown = ""; // re-measure the caption on the next render
   cy = innerHeight / 2;
   render(); drawGrid();

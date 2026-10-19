@@ -291,5 +291,8 @@ const data = JSON.stringify({ WORK, IMAGES, FILLERS, SITES, CV, CONTACT }).repla
     .rows li { grid-template-columns: 1fr 5ch; }
     .rows li > :nth-child(2) { display: none; }
     .rows li > :last-child { text-align: right; }
+    /* under the image, across the screen; a long one scrolls instead of running into the footer */
+    .cap.desc { width: auto; right: var(--pad); bottom: 40px; overflow-y: auto; pointer-events: auto; }
+    .cap.desc:empty { display: none; } /* closed: don't block swipes on the line */
   }
 </style>
