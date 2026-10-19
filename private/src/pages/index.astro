@@ -283,7 +283,10 @@ const data = JSON.stringify({ WORK, IMAGES, FILLERS, SITES, CV, CONTACT }).repla
   @media (max-width: 640px) {
     .bar { grid-template-columns: 1fr 1fr; }
     .bar .name { display: none; }
-    .bar .portrait { grid-column: 2; }
+    .bar nav a[href="#index"] { display: none; }
+    /* under (Light) (Grid), and the bio starts below it */
+    .bar .portrait { grid-column: 2; grid-row: 3; }
+    #bio { padding-top: 180px; }
     .bar .tools { grid-column: 2; }
     .sheet { grid-template-columns: 1fr 1fr; row-gap: 2.5em; }
     .sheet .title { grid-column: 1 / -1; }

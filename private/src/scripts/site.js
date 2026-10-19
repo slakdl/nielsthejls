@@ -408,6 +408,8 @@ function land() {
 }
 
 // drag: the line follows the pointer, release throws it
+// ponytail: tuned by feel. A finger on a phone moved (and flung) the line twice as far as felt right
+const TOUCH_GAIN = 0.5;
 let px = 0, pt = 0, moved = 0, vel = 0;
 work.addEventListener("pointerdown", (e) => {
   dragging = true; glide = null; follow = null; target = null; pendingOpen = null; v = 0; px = e.clientX; pt = e.timeStamp; moved = 0; vel = 0;
@@ -417,7 +419,7 @@ work.addEventListener("pointermove", (e) => {
   if (!dragging) return;
   const dx = e.clientX - px, dt = Math.max(1, e.timeStamp - pt) / 1000;
   const [lo, hi] = bounds();
-  let di = -dx / (h + GAP); // one thumb width = one item
+  let di = (-dx / (h + GAP)) * (e.pointerType === "touch" ? TOUCH_GAIN : 1); // one thumb width = one item
   if (pos < lo || pos > hi) di *= 0.35; // resistance past the ends of an open project
   pos += di; moved += Math.abs(dx);
   vel = 0.7 * (di / dt) + 0.3 * vel;
