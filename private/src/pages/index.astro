@@ -3,6 +3,7 @@ import "@fontsource/ibm-plex-mono/500.css";
 import { getCollection } from "astro:content";
 import { getImage, Image } from "astro:assets";
 import portrait from "../assets/portrait.jpg";
+import passport from "../assets/passport.jpg";
 
 // Projects live in src/content/projects. The rest of the site's copy is here.
 const CONTACT = "niels.thejls@gmail.com";
@@ -72,7 +73,11 @@ const WORK = await Promise.all(
     ],
   })),
 );
-const data = JSON.stringify({ WORK, FILLERS, SITES, CV, CONTACT }).replace(/</g, "\\u003c");
+// loose images on the line after the work: they come into focus, but don't open
+const IMAGES = await Promise.all(
+  [{ src: passport, title: "Passport", note: "Scan", year: 2026 }].map(async ({ src, ...d }) => ({ ...d, ...(await sizes(src)) })),
+);
+const data = JSON.stringify({ WORK, IMAGES, FILLERS, SITES, CV, CONTACT }).replace(/</g, "\\u003c");
 ---
 
 <!doctype html>
@@ -82,8 +87,8 @@ const data = JSON.stringify({ WORK, FILLERS, SITES, CV, CONTACT }).replace(/</g,
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Niels Thejls</title>
 <meta name="description" content="Niels Thejls — designer. Work, index and bio.">
-<!-- mirrored N in ABC Walter Neue Mono Extrabold; drawn from the trial font, so it sits with it (gitignored) -->
-<link rel="icon" href="/fonts/trial/favicon.svg" type="image/svg+xml">
+<!-- mirrored N, traced from IBM Plex Mono Bold so it sits with the type -->
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="preload" as="image" href={WORK[0]?.thumb} fetchpriority="high">
 <script is:inline>try { if (localStorage.theme === "light") document.documentElement.dataset.theme = "light"; } catch (e) {}</script>
 </head>
@@ -227,9 +232,9 @@ const data = JSON.stringify({ WORK, FILLERS, SITES, CV, CONTACT }).replace(/</g,
     background: color-mix(in srgb, var(--ink) 13%, var(--paper)); transition: background-color .4s; }
   .item.rel { z-index: 1; }
   /* empty slots are the mirrored N (the favicon), drawn as a shape in the site's own grey so it
-     follows the theme toggle. Trial-font asset, local only: without it the slot is simply empty. */
+     follows the theme toggle. */
   .item.ph { background: var(--mute);
-    -webkit-mask: url("/fonts/trial/favicon.svg") center / contain no-repeat; mask: url("/fonts/trial/favicon.svg") center / contain no-repeat; }
+    -webkit-mask: url("/favicon.svg") center / contain no-repeat; mask: url("/favicon.svg") center / contain no-repeat; }
   .item img { display: block; height: 100%; width: auto; -webkit-user-drag: none; pointer-events: none; }
   /* fixed height, so the number sits in the same place whatever the title's length: number + gap +
      3 title lines + (Read more). A 4-line title would run into the 16px above the image. */

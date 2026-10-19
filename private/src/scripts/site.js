@@ -3,7 +3,7 @@ import { createSpider, VW as SPIDER_W, VH as SPIDER_H } from "./spider.js";
 
 // The line, the project unfold/fold, the index, bio, theme and grid.
 // Content comes from src/content/projects via the JSON the page embeds.
-const { WORK, FILLERS, SITES, CV, CONTACT } = JSON.parse(document.getElementById("data").textContent);
+const { WORK, IMAGES, FILLERS, SITES, CV, CONTACT } = JSON.parse(document.getElementById("data").textContent);
 
 const $ = (id) => document.getElementById(id);
 const pad = (n) => String(n).padStart(2, "0");
@@ -65,8 +65,8 @@ for (const type of ["pointerover", "pointerout"]) addEventListener(type, (e) => 
   morph(label, type === "pointerover" ? mirror(text) : text);
 });
 
-// --- the line: real work, then grey squares
-const BASE = [...WORK, ...Array.from({ length: FILLERS }, () => ({ w: 1, h: 1 }))];
+// --- the line: real work, loose images, then grey squares
+const BASE = [...WORK, ...IMAGES, ...Array.from({ length: FILLERS }, () => ({ w: 1, h: 1 }))];
 const N = BASE.length;
 const work = $("work");
 // a video shows its poster until it plays; videos and live thumbnails only run while on screen (see playIfVisible)
@@ -193,7 +193,7 @@ function render() {
     shown = key;
     $("count").textContent = `(${pad(project + 1)}/${pad(N)})`;
     const part = open && a.member ? `, ${(a.rel ? a.r + 2 : 1)}/${open.items.length + 1}` : "";
-    const more = !isOpen && p.thumb ? `<button class="more" data-text="(Read more)">(Read more)</button>` : ""; // a nudge that projects open
+    const more = !isOpen && project < WORK.length ? `<button class="more" data-text="(Read more)">(Read more)</button>` : ""; // a nudge that projects open
     $("cap").innerHTML = `<b>(${pad(project + 1)})</b><span class="t">` + (p.thumb ? `${esc(p.title)}, ${esc(p.note)}, ${p.year}${part}` : `U<span class="flip">n</span>titled`) /* an empty slot: its N mirrored, like the mark */ + `</span>` + more;
     capChanged = true;
   }
@@ -600,7 +600,7 @@ function lumOf(src, cols, rows) {
 }
 // an empty slot, as the reveal sees it: the page's ground with the mirrored N in the slot's grey,
 // fitted the way the CSS mask fits it (contain, centred), so the letters form the N, not a box
-const N_MARK = Object.assign(new Image(), { src: "/fonts/trial/favicon.svg" });
+const N_MARK = Object.assign(new Image(), { src: "/favicon.svg" });
 function paintMark(el, w, h) {
   return (c, cols, rows) => {
     c.fillStyle = getComputedStyle(document.body).backgroundColor; c.fillRect(0, 0, cols, rows);
@@ -643,7 +643,7 @@ function dust() {
   img.style.opacity = p ? 1 - clamp(p / 0.15, 0, 1) : "";
   if (!p) return;
   ctx.fillStyle = getComputedStyle(fig).color;
-  ctx.font = `500 ${fs}px "ABC Walter Neue Mono", "IBM Plex Mono", monospace`;
+  ctx.font = `500 ${fs}px "IBM Plex Mono", monospace`;
   ctx.textBaseline = "top";
   for (let i = 0; i < cols * rows; i++) {
     const base = cellChar(lum[i], light);
@@ -679,7 +679,7 @@ function drawReveals(now) {
     const r = it.el.getBoundingClientRect(), sx = r.width / it.cols, sy = r.height / it.rows;
     const appear = clamp((now - it.t0) / 300, 0, 1) * 1.6;
     octx.globalAlpha = 1 - fade;
-    octx.font = `500 ${sy}px "ABC Walter Neue Mono", "IBM Plex Mono", monospace`;
+    octx.font = `500 ${sy}px "IBM Plex Mono", monospace`;
     for (let y = 0; y < it.rows; y++) for (let x = 0; x < it.cols; x++) {
       const u = x / it.cols;
       if (u > appear) continue;

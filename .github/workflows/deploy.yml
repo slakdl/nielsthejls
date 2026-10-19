@@ -1,0 +1,40 @@
+# Builds the Astro site in private/ and publishes it to nielsthejls.com
+name: Deploy
+
+on:
+  push:
+    branches: [Version-2]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    defaults:
+      run:
+        working-directory: private
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: private/package-lock.json
+      - run: npm ci
+      - run: npx astro build
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: private/dist
+      - id: deployment
+        uses: actions/deploy-pages@v4
