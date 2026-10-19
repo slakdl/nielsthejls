@@ -16,6 +16,7 @@ const projects = defineCollection({
       studio: z.string().optional(), // where it was made, shown as "Made at …" under the description
       link: z.union([z.string().url(), z.array(z.string().url())]).optional(), // the live work, one link or several
       cover: image(), // the thumbnail in the line (the poster frame, if there's a cover video)
+      coverVideo: z.string().optional(), // a looping video as the thumbnail (./file.mp4), cover is its poster frame
       coverLive: z.enum(["globe"]).optional(), // a thumbnail the script draws live (transparent), instead of the cover image
       // unfolded after the cover when the project opens: an image, a video (./file.mp4 in the
       // project folder, like the images) with its poster frame,

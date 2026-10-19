@@ -195,6 +195,9 @@ function render() {
     const part = open && a.member ? `, ${(a.rel ? a.r + 2 : 1)}/${open.items.length + 1}` : "";
     const more = !isOpen && project < WORK.length ? `<button class="more" data-text="(Read more)">(Read more)</button>` : ""; // a nudge that projects open
     $("cap").innerHTML = `<b>(${pad(project + 1)})</b><span class="t">` + (p.thumb ? `${esc(p.title)}, ${esc(p.note)}, ${p.year}${part}` : `U<span class="flip">n</span>titled`) /* an empty slot: its N mirrored, like the mark */ + `</span>` + more;
+    // a short caption is stacked one part per line, so the year and (Read more) sit where they do for the rest (three lines)
+    const t = $("cap").querySelector(".t");
+    if (p.thumb && t.getClientRects().length < 3) t.innerHTML = `${esc(p.title)},<br>${esc(p.note)},<br>${p.year}${part}`;
     capChanged = true;
   }
   const cap = $("cap");

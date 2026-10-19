@@ -57,7 +57,9 @@ const media = (folder: string) => async (m: ImageMetadata | { video: string; pos
   "live" in m ? { live: m.live, w: LIVE_ASPECT[m.live][0], h: LIVE_ASPECT[m.live][1] }
   : "video" in m ? { ...(await sizes(m.poster)), video: videoUrl(folder, m.video) } : sizes(m);
 const WORK = await Promise.all(
-  projects.map(async ({ data, filePath }) => ({
+  projects.map(async ({ data, filePath }) => {
+    const folder = filePath!.split("/").at(-2)!;
+    return {
     title: data.title,
     note: data.note,
     year: data.year,
@@ -67,11 +69,13 @@ const WORK = await Promise.all(
     links: [data.link ?? []].flat(),
     ...(await sizes(data.cover)),
     live: data.coverLive,
+    video: data.coverVideo && videoUrl(folder, data.coverVideo),
     images: [
-      ...(await Promise.all(data.images.map(media(filePath!.split("/").at(-2)!)))),
+      ...(await Promise.all(data.images.map(media(folder)))),
       ...Array.from({ length: data.placeholders }, () => ({ w: 4, h: 5 })),
     ],
-  })),
+    };
+  }),
 );
 // loose images on the line after the work: they come into focus, but don't open
 const IMAGES = await Promise.all(
@@ -250,6 +254,9 @@ const data = JSON.stringify({ WORK, IMAGES, FILLERS, SITES, CV, CONTACT }).repla
   .item video { display: block; height: 100%; width: auto; pointer-events: none; }
   .item canvas { display: block; width: 100%; height: 100%; pointer-events: none; }
   .item.media { background: none; } /* grey is for placeholders; a transparent thumbnail floats on the page */
+  /* Dzidra's off-white thumbnail vanishes into the light paper: a hairline keeps its edge. The item is drawn
+     at open size and scaled down, so 3px here is ~1px on the line */
+  :root[data-theme="light"] .item:has(> video[aria-label="Dzidra"]) { outline: 3px solid color-mix(in srgb, var(--ink) 14%, transparent); outline-offset: -3px; }
   .cap .more { display: block; margin-top: 1.25em; pointer-events: auto; } /* the caption itself lets clicks through */
 
   /* index + bio: rows sit on columns 2–4 */
