@@ -311,9 +311,9 @@ const data = JSON.stringify({ WORK, IMAGES, FILLERS, SITES, CV, CONTACT }).repla
     .sheet { grid-template-columns: 1fr 1fr; row-gap: 2.5em; }
     .sheet .title { grid-column: 1 / -1; }
     .rows, .bio-head { margin-left: 0; }
-    .rows li { grid-template-columns: 1fr 5ch; }
+    .rows li { grid-template-columns: 1fr auto; } /* the year column is as wide as its longest year */
     .rows li > :nth-child(2) { display: none; }
-    .rows li > :last-child { text-align: right; }
+    .rows li > :last-child { text-align: right; white-space: nowrap; } /* "2024–25", "2026 –" stay on one line */
     #contact .rows li { grid-template-columns: auto auto; justify-content: space-between; }
     #contact .rows li > * { display: block; }
     /* on the second column under the image; a long one scrolls instead of running off the screen */
