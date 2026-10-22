@@ -29,7 +29,7 @@ const CV = {
     ["Fontys Academy for Creative Industries", "Minor, Transmedia Design", "2021"],
   ],
   Recognition: [
-    ['<a href="https://www.dandad.org/work/new-blood-archive/the-green-hand" target="_blank" rel="noopener">The Green Hand ↗</a>', "Graphite Pencil, D&AD New Blood", ""],
+    ['<a href="https://www.dandad.org/work/new-blood-archive/the-green-hand" target="_blank" rel="noopener">The Green Hand<span class="arr"> ↗</span></a>', "Graphite Pencil, D&AD New Blood", ""],
   ],
 };
 
@@ -135,7 +135,7 @@ const data = JSON.stringify({ WORK, IMAGES, FILLERS, SITES, CV, CONTACT }).repla
     <ul class="rows">
       <li><span><i>(01)</i>Mail</span><a href={`mailto:${CONTACT}`}>{CONTACT}</a></li>
       {SOCIALS.map((s, i) => (
-        <li><span><i>({String(i + 2).padStart(2, "0")})</i>{s.label}</span><a href={s.href} target="_blank" rel="noopener">{s.text} ↗</a></li>
+        <li><span><i>({String(i + 2).padStart(2, "0")})</i>{s.label}</span><a href={s.href} target="_blank" rel="noopener">{s.text}<span class="arr"> ↗</span></a></li>
       ))}
     </ul>
   </section>
@@ -148,7 +148,7 @@ const data = JSON.stringify({ WORK, IMAGES, FILLERS, SITES, CV, CONTACT }).repla
   <span class="title">Contact</span>
   <a class="ct" href={`mailto:${CONTACT}`}><span class="k">Mail</span><span class="v">{CONTACT}</span></a>
   {SOCIALS.map((s) => (
-    <a class="ct" href={s.href} target="_blank" rel="noopener"><span class="k">{s.label}</span><span class="v">{s.text} ↗</span></a>
+    <a class="ct" href={s.href} target="_blank" rel="noopener"><span class="k">{s.label}</span><span class="v">{s.text}<span class="arr"> ↗</span></span></a>
   ))}
   <button class="close" id="sheet-close">(Close)</button>
 </aside>
@@ -319,5 +319,6 @@ const data = JSON.stringify({ WORK, IMAGES, FILLERS, SITES, CV, CONTACT }).repla
     /* on the second column under the image; a long one scrolls instead of running off the screen */
     .cap.desc { width: auto; right: var(--pad); bottom: var(--pad); overflow-y: auto; pointer-events: auto; }
     .cap.desc:empty { display: none; } /* closed: don't block swipes on the line */
+    .cap b, .arr { display: none; } /* no project number over the caption, no ↗ after links */
   }
 </style>

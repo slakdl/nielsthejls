@@ -276,7 +276,7 @@ if (WORK.some((p) => p.live === "globe")) loadGlobe();
 function showDesc(p) {
   // each link as its address, readable (no mirror): host without www, plus the path if it has one
   const label = (u) => { const x = new URL(u); return x.host.replace(/^www\./, "") + x.pathname.replace(/\/(en\/?)?$/, ""); };
-  const link = p?.links?.length ? `<span class="links">${p.links.map((u) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(label(u))} ↗</a>`).join("<br>")}</span>` : "";
+  const link = p?.links?.length ? `<span class="links">${p.links.map((u) => `<a href="${esc(u)}" target="_blank" rel="noopener">${esc(label(u))}<span class="arr"> ↗</span></a>`).join("<br>")}</span>` : "";
   // any of description, role and link: a project can have just a link
   $("desc").innerHTML = (p?.description ? `<span>${esc(p.description)}</span>` : "") + (p?.studio ? `<i>Made at ${esc(p.studio)}</i>` : "") + (p?.role?.length ? `<i>${p.role.map(esc).join("<br>")}</i>` : "") /* one tag per line */ + link;
   if ($("desc").textContent) scramble("desc", false);
@@ -529,7 +529,7 @@ $("rows").innerHTML =
   `<h2>Work</h2>` +
   WORK.map((p, i) => row([`<i>(${pad(i + 1)})</i><a href="#work" data-go="${i}">${esc(p.title)}</a>`, esc(p.note), p.year])).join("") +
   `<h2>Sites</h2>` +
-  SITES.map((s, i) => row([`<i>(${pad(i + 1)})</i><a href="https://${s}" target="_blank" rel="noopener">${s} ↗</a>`, "Website", ""])).join("");
+  SITES.map((s, i) => row([`<i>(${pad(i + 1)})</i><a href="https://${s}" target="_blank" rel="noopener">${s}<span class="arr"> ↗</span></a>`, "Website", ""])).join("");
 $("rows").addEventListener("click", (e) => { const a = e.target.closest("[data-go]"); if (a) setTimeout(() => openProject(+a.dataset.go), OUT_FOR + 160); });
 $("cv").innerHTML = Object.entries(CV).map(([t, list]) =>
   `<h2>${t}</h2>` + list.map(([org, role, yr], i) => row([`<i>(${pad(i + 1)})</i>${org}`, role, yr])).join("")).join("");
