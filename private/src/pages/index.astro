@@ -103,7 +103,7 @@ const data = JSON.stringify({ WORK, IMAGES, FILLERS, SITES, CV, CONTACT }).repla
   <button class="burger" id="burger" aria-expanded="false" aria-controls="menu">(Menu)</button> <!-- phones only -->
   <!-- on a phone this is the menu; elsewhere it isn't a box at all, its children sit on the bar's columns -->
   <div class="menu" id="menu">
-    <nav><a href="#work">Work</a><a href="#bio">Bio</a><a href="#index">Index</a><a class="mcontact" id="mcontact" href={`mailto:${CONTACT}`}>Contact</a></nav>
+    <nav><a href="#work">Work</a><a href="#bio">Bio</a><a href="#index">Index</a><a class="mcontact" href="#contact">Contact</a></nav>
     <span class="tools"><button id="theme">(Light)</button></span>
   </div>
   <span id="count">(01)</span>
@@ -129,11 +129,21 @@ const data = JSON.stringify({ WORK, IMAGES, FILLERS, SITES, CV, CONTACT }).repla
     </div>
     <ul class="rows" id="cv"></ul>
   </section>
+
+  <!-- the phone menu's Contact; elsewhere Contact is the sheet that slides up from the footer -->
+  <section class="page" id="contact" hidden aria-label="Contact">
+    <ul class="rows">
+      <li><span><i>(01)</i>Mail</span><a href={`mailto:${CONTACT}`}>{CONTACT}</a></li>
+      {SOCIALS.map((s, i) => (
+        <li><span><i>({String(i + 2).padStart(2, "0")})</i>{s.label}</span><a href={s.href} target="_blank" rel="noopener">{s.text} ↗</a></li>
+      ))}
+    </ul>
+  </section>
 </main>
 
 <div class="cap" id="cap" aria-live="polite"></div>
 <div class="cap desc" id="desc"></div>
-<footer class="bar foot"><span class="note" id="note"></span><a class="contact" id="contact" href={`mailto:${CONTACT}`} aria-controls="sheet" aria-expanded="false">Contact</a></footer>
+<footer class="bar foot"><span class="note" id="note"></span><a class="contact" id="contact-btn" href={`mailto:${CONTACT}`} aria-controls="sheet" aria-expanded="false">Contact</a></footer>
 <aside class="sheet" id="sheet" role="dialog" aria-label="Contact" inert>
   <span class="title">Contact</span>
   <a class="ct" href={`mailto:${CONTACT}`}><span class="k">Mail</span><span class="v">{CONTACT}</span></a>
@@ -191,7 +201,8 @@ const data = JSON.stringify({ WORK, IMAGES, FILLERS, SITES, CV, CONTACT }).repla
     transition: background-color .4s, color .4s;
   }
   a, button { color: inherit; font: inherit; text-transform: inherit; letter-spacing: inherit; background: none; border: 0; cursor: pointer; text-decoration: none; }
-  a:hover, button:hover, a[aria-current="page"], button[aria-pressed="true"] { color: var(--mute); }
+  a[aria-current="page"], button[aria-pressed="true"] { color: var(--mute); }
+  @media (hover: hover) { a:hover, button:hover { color: var(--mute); } } /* a tap would leave it grey */
   :focus-visible { outline: 1px solid var(--ink); outline-offset: 2px; }
 
   /* four equal columns; everything starts on a column line */
@@ -303,6 +314,8 @@ const data = JSON.stringify({ WORK, IMAGES, FILLERS, SITES, CV, CONTACT }).repla
     .rows li { grid-template-columns: 1fr 5ch; }
     .rows li > :nth-child(2) { display: none; }
     .rows li > :last-child { text-align: right; }
+    #contact .rows li { grid-template-columns: auto auto; justify-content: space-between; }
+    #contact .rows li > * { display: block; }
     /* on the second column under the image; a long one scrolls instead of running off the screen */
     .cap.desc { width: auto; right: var(--pad); bottom: var(--pad); overflow-y: auto; pointer-events: auto; }
     .cap.desc:empty { display: none; } /* closed: don't block swipes on the line */

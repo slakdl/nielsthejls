@@ -48,6 +48,8 @@ function morph(el, to, dur = 320) {
   frame(performance.now());
 }
 // mirrored: reversed, with brackets turned round so "(Light)" reads "(thgiL)", not ")thgiL("
+// touch screens keep :hover on whatever was tapped last, so the mirror is for a real mouse only
+const hovered = (el) => matchMedia("(hover: hover)").matches && el.matches(":hover");
 const mirror = (s) => [...s].reverse().map((c) => ({ "(": ")", ")": "(" })[c] ?? c).join("");
 // every button: hover → mirrored (Work → kroW), leave → back. Mouse only, so a tap doesn't
 // leave a label mirrored; aria-label keeps the real name for screen readers.
@@ -490,21 +492,21 @@ const sheet = $("sheet");
 const sheetOpen = () => sheet.classList.contains("open");
 function openSheet() {
   sheet.classList.add("open"); sheet.inert = false;
-  $("contact").setAttribute("aria-expanded", "true");
+  $("contact-btn").setAttribute("aria-expanded", "true");
   scramble("sheet", false);
   sheet.querySelector(".ct").focus({ preventScroll: true });
 }
 function closeSheet() {
   if (!sheetOpen()) return;
   sheet.classList.remove("open"); sheet.inert = true;
-  $("contact").setAttribute("aria-expanded", "false");
+  $("contact-btn").setAttribute("aria-expanded", "false");
   scramble("sheet", true);
-  $("contact").focus({ preventScroll: true });
+  $("contact-btn").focus({ preventScroll: true });
 }
-$("contact").addEventListener("click", (e) => { e.preventDefault(); sheetOpen() ? closeSheet() : openSheet(); });
+$("contact-btn").addEventListener("click", (e) => { e.preventDefault(); sheetOpen() ? closeSheet() : openSheet(); });
 $("sheet-close").onclick = closeSheet;
 
-// --- phone menu: (Menu) opens Work, Bio, Contact and the theme over the page; a link closes it
+// --- phone menu: (Menu) opens Work, Bio, Contact (its own page here) and the theme over the page; a link closes it
 const bar = document.querySelector(".bar");
 const menuOpen = () => bar.classList.contains("menu-open");
 function menu(on) {
@@ -512,14 +514,13 @@ function menu(on) {
   $("burger").setAttribute("aria-expanded", on);
   const b = $("burger"), text = (b.dataset.text = on ? "(Close)" : "(Menu)");
   b.setAttribute("aria-label", text);
-  morph(b, b.matches(":hover") ? mirror(text) : text); // takes over from a hover flicker still running
+  morph(b, hovered(b) ? mirror(text) : text); // takes over from a hover flicker still running
 }
 $("burger").onclick = () => menu(!menuOpen());
 $("menu").addEventListener("click", (e) => { if (e.target.closest("a")) menu(false); });
-$("mcontact").addEventListener("click", (e) => { e.preventDefault(); openSheet(); });
 // outside click: close, and swallow it so it doesn't also grab the line
 addEventListener("pointerdown", (e) => {
-  if (sheetOpen() && !sheet.contains(e.target) && !$("contact").contains(e.target)) { e.stopPropagation(); closeSheet(); }
+  if (sheetOpen() && !sheet.contains(e.target) && !$("contact-btn").contains(e.target)) { e.stopPropagation(); closeSheet(); }
 }, true);
 
 // --- index + bio
@@ -542,7 +543,7 @@ $("theme").onclick = () => {
   label();
   const text = $("theme").dataset.text;
   $("theme").setAttribute("aria-label", text);
-  morph($("theme"), $("theme").matches(":hover") ? mirror(text) : text); // still hovered: show the new label mirrored
+  morph($("theme"), hovered($("theme")) ? mirror(text) : text); // still hovered: show the new label mirrored
 };
 label();
 
@@ -553,7 +554,7 @@ const OUT_FOR = 260, IN_FOR = 420; // ms per piece of text
 const OUT_STAGGER = 6, IN_STAGGER = 14, IN_STAGGER_MAX = 360; // ms between pieces, top to bottom
 const ALNUM = /[\p{L}\p{N}]/u;
 let page = null, switching = 0;
-const pageId = () => (["index", "bio"].includes(location.hash.slice(1)) ? location.hash.slice(1) : "work");
+const pageId = () => (["index", "bio", "contact"].includes(location.hash.slice(1)) ? location.hash.slice(1) : "work");
 const textRoots = (id) => (id === "work" ? [$("count"), $("cap"), $("desc"), $("note")] : id === "bio" ? [$("name"), $(id)] : [$(id)]);
 function textNodes(id) {
   const nodes = [];
