@@ -102,7 +102,7 @@ const data = JSON.stringify({ WORK, IMAGES, FILLERS, SITES, CV, CONTACT }).repla
 <header class="bar">
   <nav><a href="#work">Work</a><a href="#bio">Bio</a><a href="#index">Index</a></nav>
   <span id="count">(01)</span>
-  <span class="tools"><button id="theme">(Light)</button><button id="gridbtn" aria-pressed="false">(Grid)</button></span>
+  <span class="tools"><button id="theme">(Light)</button></span>
   <span class="name" id="name" hidden>Niels Thejls</span> <!-- Bio page only -->
   <!-- the portrait sits under the name, on the Bio page only -->
   <figure class="portrait" id="portrait" hidden>
@@ -138,7 +138,6 @@ const data = JSON.stringify({ WORK, IMAGES, FILLERS, SITES, CV, CONTACT }).repla
   ))}
   <button class="close" id="sheet-close">(Close)</button>
 </aside>
-<div class="grid" id="grid" hidden aria-hidden="true"></div>
 <canvas id="ascii" aria-hidden="true"></canvas>
 
 <script is:inline type="application/json" id="data" set:html={data}></script>
@@ -166,7 +165,6 @@ const data = JSON.stringify({ WORK, IMAGES, FILLERS, SITES, CV, CONTACT }).repla
     --paper: #1b1b1a;
     --ink: #ffffff;
     --mute: #7d7c77;
-    --guide: rgba(229, 83, 45, .6);
     --pad: 12px;
     --gap: 10px;
   }
@@ -216,15 +214,6 @@ const data = JSON.stringify({ WORK, IMAGES, FILLERS, SITES, CV, CONTACT }).repla
   .sheet .close { position: absolute; right: var(--pad); bottom: var(--pad); } /* exactly where Contact sits */
   .sheet .ct .k { display: block; opacity: .55; margin-bottom: 2.4em; }
   .sheet .ct .v { display: block; }
-
-  /* grid overlay, toggled with (Grid) or G */
-  .grid { position: fixed; inset: 0; z-index: 3; pointer-events: none; color: #e5532d; }
-  .grid[hidden] { display: none; }
-  .grid .cols { position: absolute; inset: 0 var(--pad); display: grid; column-gap: var(--gap); }
-  .grid i { font-style: normal; background: rgba(229, 83, 45, .12); padding: 0 4px 44px; display: flex; align-items: flex-end; }
-  .grid b { position: absolute; left: 0; right: 0; height: 0; border-top: 1px dashed var(--guide); font-weight: inherit; }
-  .grid b span { position: absolute; right: var(--pad); bottom: 3px; }
-  .grid .legend { position: absolute; left: var(--pad); bottom: 30px; }
 
   main { height: 100%; }
   section[hidden] { display: none !important; }
@@ -284,7 +273,7 @@ const data = JSON.stringify({ WORK, IMAGES, FILLERS, SITES, CV, CONTACT }).repla
     .bar { grid-template-columns: 1fr 1fr; }
     .bar .name { display: none; }
     .bar nav a[href="#index"] { display: none; }
-    /* under (Light) (Grid), and the bio starts below it */
+    /* under (Light), and the bio starts below it */
     .bar .portrait { grid-column: 2; grid-row: 3; }
     #bio { padding-top: 180px; }
     .bar .tools { grid-column: 2; }

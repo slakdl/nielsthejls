@@ -1,7 +1,7 @@
 import { loadGlobe, drawGlobe } from "./globe.js";
 import { createSpider, VW as SPIDER_W, VH as SPIDER_H } from "./spider.js";
 
-// The line, the project unfold/fold, the index, bio, theme and grid.
+// The line, the project unfold/fold, the index, bio and theme.
 // Content comes from src/content/projects via the JSON the page embeds.
 const { WORK, IMAGES, FILLERS, SITES, CV, CONTACT } = JSON.parse(document.getElementById("data").textContent);
 
@@ -138,7 +138,7 @@ function measure() {
   maxFocusW = small ? innerWidth - 2 * colX : col4X - GAP - colX; // phones have no column 4: the screen's width
   shown = ""; // re-measure the caption on the next render
   cy = innerHeight / 2;
-  render(); drawGrid();
+  render();
 }
 
 // size grows smoothly as an item approaches the line; inside an open project the focus grows bigger
@@ -451,7 +451,6 @@ work.addEventListener("pointerup", (e) => {
 });
 
 addEventListener("keydown", (e) => {
-  if (e.key === "g" || e.key === "G") return toggleGrid();
   if (location.hash && location.hash !== "#work") return;
   if (e.key === "Escape") return sheetOpen() ? closeSheet() : closeProject();
   if (e.key === "Enter" && !open && !e.target.closest?.("a, button")) {
@@ -487,29 +486,6 @@ $("sheet-close").onclick = closeSheet;
 addEventListener("pointerdown", (e) => {
   if (sheetOpen() && !sheet.contains(e.target) && !$("contact").contains(e.target)) { e.stopPropagation(); closeSheet(); }
 }, true);
-
-// --- grid overlay
-function toggleGrid() {
-  $("grid").hidden = !$("grid").hidden;
-  $("gridbtn").setAttribute("aria-pressed", !$("grid").hidden);
-  drawGrid();
-}
-// read straight from the live layout, so it shows what the page actually uses
-function drawGrid() {
-  const g = $("grid");
-  if (g.hidden) return;
-  const cols = getComputedStyle(document.querySelector(".bar")).gridTemplateColumns.split(" ");
-  const css = getComputedStyle(root), m = css.getPropertyValue("--pad").trim(), gut = css.getPropertyValue("--gap").trim();
-  const line = (y, label) => `<b style="top:${Math.round(y)}px"><span>${label}</span></b>`;
-  g.innerHTML =
-    `<div class="cols" style="grid-template-columns:repeat(${cols.length},1fr)">` +
-    cols.map((w, i) => `<i>(C${i + 1}) ${Math.round(parseFloat(w))}</i>`).join("") + `</div>` +
-    line(cy - HB / 2, `Open top ${HB}`) + line(cy - H / 2, `Focus top ${H}`) + line(cy - h / 2, `Thumb top ${h}`) +
-    line(cy, "Axis") +
-    line(cy + h / 2, "Thumb bottom") + line(cy + H / 2, "Focus bottom") + line(cy + HB / 2, "Open bottom") +
-    `<span class="legend">${cols.length} cols · ${m} margin · ${gut} gutter · ${innerWidth}×${innerHeight}</span>`;
-}
-$("gridbtn").onclick = toggleGrid;
 
 // --- index + bio
 const row = (cells) => `<li>${cells.map((c) => `<span>${c}</span>`).join("")}</li>`;
