@@ -100,9 +100,13 @@ const data = JSON.stringify({ WORK, IMAGES, FILLERS, SITES, CV, CONTACT }).repla
 
 
 <header class="bar">
-  <nav><a href="#work">Work</a><a href="#bio">Bio</a><a href="#index">Index</a></nav>
+  <button class="burger" id="burger" aria-expanded="false" aria-controls="menu">(Menu)</button> <!-- phones only -->
+  <!-- on a phone this is the menu; elsewhere it isn't a box at all, its children sit on the bar's columns -->
+  <div class="menu" id="menu">
+    <nav><a href="#work">Work</a><a href="#bio">Bio</a><a href="#index">Index</a><a class="mcontact" id="mcontact" href={`mailto:${CONTACT}`}>Contact</a></nav>
+    <span class="tools"><button id="theme">(Light)</button></span>
+  </div>
   <span id="count">(01)</span>
-  <span class="tools"><button id="theme">(Light)</button></span>
   <span class="name" id="name" hidden>Niels Thejls</span> <!-- Bio page only -->
   <!-- the portrait sits under the name, on the Bio page only -->
   <figure class="portrait" id="portrait" hidden>
@@ -197,6 +201,13 @@ const data = JSON.stringify({ WORK, IMAGES, FILLERS, SITES, CV, CONTACT }).repla
     padding: var(--pad);
   }
   .bar nav, .bar .tools { display: flex; gap: 2.2em; }
+  .menu { display: contents; }
+  .burger, .mcontact { display: none; }
+  .bar nav, .bar #count, .bar .tools, .bar .name { grid-row: 1; }
+  .bar nav { grid-column: 1; }
+  .bar #count { grid-column: 2; }
+  .bar .tools { grid-column: 3; }
+  .bar .name { grid-column: 4; }
   .bar.foot { top: auto; bottom: 0; align-items: end; }
   .foot .note { grid-column: 2; display: flex; gap: 2.2em; color: var(--mute); }
   .foot .contact { grid-column: 4; justify-self: end; }
@@ -273,18 +284,27 @@ const data = JSON.stringify({ WORK, IMAGES, FILLERS, SITES, CV, CONTACT }).repla
     .bar { grid-template-columns: 1fr 1fr; }
     .bar .name { display: none; }
     .bar nav a[href="#index"] { display: none; }
-    /* under (Light), and the bio starts below it */
-    .bar .portrait { grid-column: 2; grid-row: 3; }
+    /* (Menu) top left opens Work, Bio, Contact and the theme over the page */
+    .burger { display: block; justify-self: start; grid-column: 1; grid-row: 1; position: relative; z-index: 1; }
+    .menu { display: none; position: fixed; inset: 0; background: var(--paper);
+      padding: calc(var(--pad) + 3.75em) var(--pad) var(--pad); flex-direction: column; align-items: flex-start; gap: 1.25em; }
+    .bar.menu-open .menu { display: flex; }
+    .bar nav { flex-direction: column; gap: 1.25em; }
+    .mcontact { display: inline; }
+    .foot { display: none; } /* Contact lives in the menu */
+    /* the column of images slides under the top bar, not under (Menu) */
+    .work { clip-path: inset(calc(2 * var(--pad) + 1.25em) 0 0 0); }
+    /* under the counter, and the bio starts below it */
+    .bar .portrait { grid-column: 2; grid-row: 2; }
     #bio { padding-top: 180px; }
-    .bar .tools { grid-column: 2; }
     .sheet { grid-template-columns: 1fr 1fr; row-gap: 2.5em; }
     .sheet .title { grid-column: 1 / -1; }
     .rows, .bio-head { margin-left: 0; }
     .rows li { grid-template-columns: 1fr 5ch; }
     .rows li > :nth-child(2) { display: none; }
     .rows li > :last-child { text-align: right; }
-    /* under the image, across the screen; a long one scrolls instead of running into the footer */
-    .cap.desc { width: auto; right: var(--pad); bottom: 40px; overflow-y: auto; pointer-events: auto; }
+    /* on the second column under the image; a long one scrolls instead of running off the screen */
+    .cap.desc { width: auto; right: var(--pad); bottom: var(--pad); overflow-y: auto; pointer-events: auto; }
     .cap.desc:empty { display: none; } /* closed: don't block swipes on the line */
   }
 </style>

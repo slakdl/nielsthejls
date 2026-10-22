@@ -106,6 +106,11 @@ const GAP = 10;
 const INTRO_FOR = 1.3; // seconds for the entrance lap
 
 let pos = 0, v = 0, target = 0, H = 0, HB = 0, h = 0, colX = 0, col4X = 0, maxFocusW = Infinity, cy = 0, capProject = 0, descTop = 0;
+// phones: the line runs top to bottom down the left margin. There h, H, HB are widths, colX is the
+// height the image in focus starts at, maxFocusW its longest side, and EL every item's unscaled height
+let vert = false, EL = 0, col1X = 0, col2X = 0;
+// how long an image is along the line per pixel across it
+const ratio = (p) => (vert ? p.h / p.w : p.w / p.h);
 let dragging = false, raf = 0, last = 0, shown = "", glide = null, follow = null; // follow: { goal } while fingers are on the trackpad
 
 // An open project's images are spliced into the line right after its thumbnail:
@@ -127,15 +132,26 @@ function at(k) {
 }
 
 function measure() {
-  const small = innerWidth < 640;
-  H = Math.round(innerHeight * (small ? 0.42 : 0.36));
-  HB = Math.round(innerHeight * (small ? 0.5 : 0.56)); // the focused image of an open project
-  h = Math.round(innerHeight * (small ? 0.14 : 0.15));
-  document.documentElement.style.setProperty("--HB", HB + "px");
-  // focused image starts on the counter's column; a phone's second column is mid-screen, so there it starts on the first
-  colX = small ? colLeft(0) : $("count").getBoundingClientRect().left;
-  col4X = colLeft(3);
-  maxFocusW = small ? innerWidth - 2 * colX : col4X - GAP - colX; // phones have no column 4: the screen's width
+  vert = innerWidth < 640;
+  col1X = colLeft(0); col2X = colLeft(1); col4X = colLeft(3);
+  if (vert) {
+    // ponytail: proportions tuned by eye on a 390×844 phone
+    h = Math.round(innerWidth * 0.22);
+    H = Math.round(innerWidth * 0.62);
+    HB = innerWidth - 2 * col1X; // an open project's focus spans the screen
+    colX = Math.round(innerHeight * 0.28); // room above for the caption
+    maxFocusW = Math.round(innerHeight * 0.42); // and below for the description
+    EL = maxFocusW;
+  } else {
+    H = Math.round(innerHeight * 0.36);
+    HB = Math.round(innerHeight * 0.56); // the focused image of an open project
+    h = Math.round(innerHeight * 0.15);
+    // focused image starts on the counter's column
+    colX = $("count").getBoundingClientRect().left;
+    maxFocusW = col4X - GAP - colX;
+    EL = HB;
+  }
+  document.documentElement.style.setProperty("--HB", EL + "px");
   shown = ""; // re-measure the caption on the next render
   cy = innerHeight / 2;
   render();
@@ -144,27 +160,30 @@ function measure() {
 // size grows smoothly as an item approaches the line; inside an open project the focus grows bigger
 function sizeOf(k, a) {
   // the image in focus may grow up to column 4, never into it: that column is the description's
-  const top = Math.min(a.member ? H + (HB - H) * grow() : H, (maxFocusW * a.p.h) / a.p.w);
+  const top = Math.min(a.member ? H + (HB - H) * grow() : H, maxFocusW / ratio(a.p));
   return h + (top - h) * smooth(Math.max(0, 1 - Math.abs(k - pos)));
 }
-const advance = (k, a = at(k)) => ((sizeOf(k, a) * a.p.w) / a.p.h + GAP) * (a.rel ? deal(a.r) : 1);
+const advance = (k, a = at(k)) => (sizeOf(k, a) * ratio(a.p) + GAP) * (a.rel ? deal(a.r) : 1);
 // the same at thumbnail size: what the item on the line will take up once it has moved past
-const thumbAdvance = (k, a = at(k)) => ((h * a.p.w) / a.p.h + GAP) * (a.rel ? deal(a.r) : 1);
+const thumbAdvance = (k, a = at(k)) => (h * ratio(a.p) + GAP) * (a.rel ? deal(a.r) : 1);
 
 function render() {
   const i0 = Math.floor(pos), f = pos - i0, LEFT = 6, n = NL();
   const rels = [];
   let xMain = 0, wMain = 0;
-  const draw = (el, x, s) => {
-    el.style.transform = `translate3d(${x}px,${cy - s / 2}px,0) scale(${s / HB})`;
-    playIfVisible(el, x, x + (s * el.offsetWidth) / HB);
+  // x is the position along the line, s the size across it; returns the item's scale
+  const draw = (a, x, s) => {
+    const len = s * ratio(a.p), scale = (vert ? len : s) / EL;
+    a.el.style.transform = vert ? `translate3d(${col1X}px,${x}px,0) scale(${scale})` : `translate3d(${x}px,${cy - s / 2}px,0) scale(${scale})`;
+    playIfVisible(a.el, x, x + len);
+    return scale;
   };
   const place = (k, x) => {
     const a = at(k), s = sizeOf(k, a);
     if (s > h * 1.5) upgrade(a.el);
     if (a.rel) return rels.push([a, x, s]);
-    if (a.member) { xMain = x; wMain = (s * a.p.w) / a.p.h; }
-    draw(a.el, x, s);
+    if (a.member) { xMain = x; wMain = s * ratio(a.p); }
+    draw(a, x, s);
   };
   // walk right from the item on the line, then left. The line item's offset is measured
   // in its thumbnail size, not its current size: that one shrinks as it slides off, and
@@ -180,9 +199,9 @@ function render() {
   const folding = open && (open.dir < 0 || open.t < open.T);
   for (const [a, x, s] of rels) {
     const xr = xMain + (x - xMain) * deal(a.r);
-    draw(a.el, xr, s);
-    const hidden = folding ? Math.max(0, xMain + wMain - xr) : 0; // on screen, px
-    a.el.style.clipPath = hidden > 0 ? `inset(0 0 0 ${(hidden * HB) / s}px)` : ""; // in the element's own (unscaled) px
+    const scale = draw(a, xr, s);
+    const hidden = folding ? Math.max(0, xMain + wMain - xr) / scale : 0; // in the element's own (unscaled) px
+    a.el.style.clipPath = hidden > 0 ? (vert ? `inset(${hidden}px 0 0 0)` : `inset(0 0 0 ${hidden}px)`) : "";
   }
 
   const kr = Math.round(pos), a = at(kr);
@@ -202,15 +221,15 @@ function render() {
     capChanged = true;
   }
   const cap = $("cap");
-  cap.style.left = colX + "px";
-  cap.style.top = cy - HB / 2 - 16 + "px";
-  // the description stands on column 3, level with the caption (under the image on a phone)
-  // the description stands on column 4, its first line level with the caption's title line
-  // (under the image on a phone). Measured only when the caption changes, not every frame.
+  // on a phone the caption sits on column 2 above the image in focus, the description below it
+  cap.style.left = (vert ? col2X : colX) + "px";
+  cap.style.top = (vert ? colX : cy - HB / 2) - 16 + "px";
+  // the description stands on column 4, its first line level with the caption's title line.
+  // Measured only when the caption changes, not every frame.
   if (capChanged) { capChanged = false; descTop = cap.querySelector(".t").getBoundingClientRect().top; }
-  const desc = $("desc"), small = innerWidth < 640;
-  desc.style.left = (small ? colX : col4X) + "px";
-  desc.style.top = (small ? cy + HB / 2 + 16 : descTop) + "px";
+  const desc = $("desc");
+  desc.style.left = (vert ? col2X : col4X) + "px";
+  desc.style.top = (vert ? colX + maxFocusW + 16 : descTop) + "px";
 }
 let capChanged = true;
 // left edge of grid column n (0-based), read from the top bar's live grid
@@ -225,7 +244,7 @@ const liveOn = new Set();
 function playIfVisible(el, left, right) {
   const v = el.firstElementChild;
   if (v?.tagName !== "VIDEO" && v?.tagName !== "CANVAS") return;
-  const on = page === "work" && right > 0 && left < innerWidth;
+  const on = page === "work" && right > 0 && left < (vert ? innerHeight : innerWidth);
   if (on === !!el._on) return;
   el._on = on;
   if (v.tagName === "CANVAS") { on ? liveOn.add(v) : liveOn.delete(v); if (on) startLive(); return; }
@@ -411,19 +430,20 @@ function land() {
 // ponytail: tuned by feel. A finger on a phone moved (and flung) the line twice as far as felt right
 const TOUCH_GAIN = 0.5;
 let px = 0, pt = 0, moved = 0, vel = 0;
+const along = (e) => (vert ? e.clientY : e.clientX); // the pointer's position along the line
 work.addEventListener("pointerdown", (e) => {
-  dragging = true; glide = null; follow = null; target = null; pendingOpen = null; v = 0; px = e.clientX; pt = e.timeStamp; moved = 0; vel = 0;
+  dragging = true; glide = null; follow = null; target = null; pendingOpen = null; v = 0; px = along(e); pt = e.timeStamp; moved = 0; vel = 0;
   work.setPointerCapture(e.pointerId); work.classList.add("drag"); wake();
 });
 work.addEventListener("pointermove", (e) => {
   if (!dragging) return;
-  const dx = e.clientX - px, dt = Math.max(1, e.timeStamp - pt) / 1000;
+  const dx = along(e) - px, dt = Math.max(1, e.timeStamp - pt) / 1000;
   const [lo, hi] = bounds();
   let di = (-dx / (h + GAP)) * (e.pointerType === "touch" ? TOUCH_GAIN : 1); // one thumb width = one item
   if (pos < lo || pos > hi) di *= 0.35; // resistance past the ends of an open project
   pos += di; moved += Math.abs(dx);
   vel = 0.7 * (di / dt) + 0.3 * vel;
-  px = e.clientX; pt = e.timeStamp;
+  px = along(e); pt = e.timeStamp;
 });
 work.addEventListener("pointerup", (e) => {
   if (!dragging) return;
@@ -451,6 +471,7 @@ work.addEventListener("pointerup", (e) => {
 });
 
 addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && menuOpen()) return menu(false);
   if (location.hash && location.hash !== "#work") return;
   if (e.key === "Escape") return sheetOpen() ? closeSheet() : closeProject();
   if (e.key === "Enter" && !open && !e.target.closest?.("a, button")) {
@@ -482,6 +503,20 @@ function closeSheet() {
 }
 $("contact").addEventListener("click", (e) => { e.preventDefault(); sheetOpen() ? closeSheet() : openSheet(); });
 $("sheet-close").onclick = closeSheet;
+
+// --- phone menu: (Menu) opens Work, Bio, Contact and the theme over the page; a link closes it
+const bar = document.querySelector(".bar");
+const menuOpen = () => bar.classList.contains("menu-open");
+function menu(on) {
+  bar.classList.toggle("menu-open", on);
+  $("burger").setAttribute("aria-expanded", on);
+  const b = $("burger"), text = (b.dataset.text = on ? "(Close)" : "(Menu)");
+  b.setAttribute("aria-label", text);
+  morph(b, b.matches(":hover") ? mirror(text) : text); // takes over from a hover flicker still running
+}
+$("burger").onclick = () => menu(!menuOpen());
+$("menu").addEventListener("click", (e) => { if (e.target.closest("a")) menu(false); });
+$("mcontact").addEventListener("click", (e) => { e.preventDefault(); openSheet(); });
 // outside click: close, and swallow it so it doesn't also grab the line
 addEventListener("pointerdown", (e) => {
   if (sheetOpen() && !sheet.contains(e.target) && !$("contact").contains(e.target)) { e.stopPropagation(); closeSheet(); }
@@ -557,7 +592,7 @@ const overlay = $("ascii"), octx = overlay.getContext("2d");
 let reveals = [], revealRaf = 0;
 function reveal(el, { delay = 0, fs = 6 } = {}) {
   const r = el.getBoundingClientRect();
-  if (!r.width || r.right < 0 || r.left > innerWidth) return; // off screen: nothing to draw
+  if (!r.width || r.right < 0 || r.left > innerWidth || r.bottom < 0 || r.top > innerHeight) return; // off screen: nothing to draw
   const vid = el.querySelector("video");
   let img = el.querySelector("img") ?? (vid && Object.assign(new Image(), { src: vid.poster })) ?? el.querySelector("canvas");
   const cols = Math.max(1, Math.floor(r.width / (fs * 0.6))), rows = Math.max(1, Math.floor(r.height / fs));
@@ -674,11 +709,12 @@ function drawReveals(now) {
   octx.globalAlpha = 1;
   revealRaf = reveals.length ? requestAnimationFrame(drawReveals) : 0;
 }
-// back on Work: every image in view reveals, sweeping left to right across the screen
+// back on Work: every image in view reveals, sweeping along the line (down it on a phone)
 function lineIn() {
+  const span = vert ? innerHeight : innerWidth;
   for (const el of work.querySelectorAll(".item")) {
-    const x = el.getBoundingClientRect().left;
-    if (x < innerWidth && x > -innerWidth) reveal(el, { delay: clamp(x / innerWidth, 0, 1) * 300, fs: 7 });
+    const r = el.getBoundingClientRect(), x = vert ? r.top : r.left;
+    if (x < span && x > -span) reveal(el, { delay: clamp(x / span, 0, 1) * 300, fs: 7 });
   }
 }
 
